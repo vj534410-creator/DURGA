@@ -1,0 +1,6 @@
+{
+  "name": "DURGA",
+  "description": "Digital Unified Response & Guidance for All — Production-Ready Women & Child Safety Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
