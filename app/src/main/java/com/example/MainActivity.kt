@@ -43,6 +43,7 @@ import com.example.durga.ui.screens.MyCasesScreen
 import com.example.durga.ui.screens.PrivacyCenterScreen
 import com.example.durga.ui.screens.PrivateVaultScreen
 import com.example.durga.ui.screens.SelectWhatToShareScreen
+import com.example.durga.ui.screens.SettingsScreen
 import com.example.durga.ui.screens.WitnessReportScreen
 import com.example.ui.theme.DurgaTheme
 
@@ -69,6 +70,7 @@ object DurgaRoutes {
     const val PRIVATE_VAULT = "private_vault"
     const val PRIVACY_CENTER = "privacy_center"
     const val AUTHORITY_PORTAL = "authority_portal"
+    const val SETTINGS = "settings"
 }
 
 class MainActivity : ComponentActivity() {
@@ -112,10 +114,14 @@ fun DurgaApp(
     val officialServices by viewModel.officialServices.collectAsState()
     val auditLogs by viewModel.auditLogs.collectAsState()
     val isVaultUnlocked by viewModel.isVaultUnlocked.collectAsState()
+    val vaultPin by viewModel.vaultPin.collectAsState()
+    val vaultLockType by viewModel.vaultLockType.collectAsState()
+    val vaultErrorMessage by viewModel.vaultErrorMessage.collectAsState()
     val authorityRole by viewModel.authorityUserRole.collectAsState()
     val authorityStaffId by viewModel.authorityStaffId.collectAsState()
     val selectedCaseId by viewModel.selectedCaseId.collectAsState()
     val selectedCaseUpdates by viewModel.getUpdatesForSelectedCase().collectAsState(initial = emptyList())
+    val currentTheme by viewModel.currentTheme.collectAsState()
 
     // Always launch directly to the main Home Screen so the user immediately sees the full app interface
     val startDestination = DurgaRoutes.HOME
@@ -156,7 +162,7 @@ fun DurgaApp(
                         onNavigateToMyCases = { navController.navigate(DurgaRoutes.MY_CASES) },
                         onNavigateToChildFriendly = { navController.navigate(DurgaRoutes.CHILD_FRIENDLY) },
                         onNavigateToPrivacyCenter = { navController.navigate(DurgaRoutes.PRIVACY_CENTER) },
-                        onNavigateToSettings = { navController.navigate(DurgaRoutes.LANGUAGE_SELECT) },
+                        onNavigateToSettings = { navController.navigate(DurgaRoutes.SETTINGS) },
                         onNavigateToAuthorityPortal = { navController.navigate(DurgaRoutes.AUTHORITY_PORTAL) },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onThemeChange = { viewModel.setTheme(it) },
@@ -439,19 +445,68 @@ fun DurgaApp(
                     PrivateVaultScreen(
                         currentLanguage = currentLang,
                         isVaultUnlocked = isVaultUnlocked,
+                        vaultPin = vaultPin,
+                        vaultErrorMessage = vaultErrorMessage,
                         draftsList = allDrafts,
                         evidenceList = allEvidence,
-                        onUnlockVault = { viewModel.unlockVault() },
+                        onUnlockWithPin = { viewModel.unlockVaultWithPin(it) },
+                        onSetNewPin = { viewModel.setVaultPin(it) },
                         onLockVault = { viewModel.lockVault() },
                         onLockAllEvidence = { viewModel.lockAllEvidenceVault() },
+                        onAddEvidenceItem = { type, name, uri, size ->
+                            viewModel.addNewVaultEvidence(type, name, uri, size)
+                        },
+                        onDeleteEvidenceItem = { viewModel.deleteEvidenceFromVault(it) },
                         onDeleteDraft = { viewModel.deleteDraft(it) },
                         onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
-                        onQuickExit = { viewModel.triggerQuickExit() }
+                        onQuickExit = { viewModel.triggerQuickExit() },
+                        onNavigate = { route ->
+                            when (route) {
+                                "home" -> navController.navigate(DurgaRoutes.HOME) { popUpTo(DurgaRoutes.HOME) { inclusive = true } }
+                                "complaint" -> navController.navigate(DurgaRoutes.COMPLAINT_CATEGORIES)
+                                "vault" -> { /* Already here */ }
+                                "cases" -> navController.navigate(DurgaRoutes.MY_CASES)
+                                "settings" -> navController.navigate(DurgaRoutes.SETTINGS)
+                            }
+                        }
                     )
                 }
 
-                // 21. Privacy Center
+                // 21. Settings Screen
+                composable(DurgaRoutes.SETTINGS) {
+                    SettingsScreen(
+                        currentLanguage = currentLang,
+                        currentTheme = currentTheme,
+                        vaultPin = vaultPin,
+                        vaultLockType = vaultLockType,
+                        isVaultUnlocked = isVaultUnlocked,
+                        onSelectLanguage = { viewModel.setLanguage(it) },
+                        onSelectTheme = { viewModel.setTheme(it) },
+                        onSetVaultPin = { viewModel.setVaultPin(it) },
+                        onSetVaultLockType = { viewModel.setVaultLockType(it) },
+                        onLockVault = { viewModel.lockVault() },
+                        onResetVaultPin = { viewModel.resetVaultPinToDefault() },
+                        onPurgeAllData = {
+                            viewModel.deleteLocalDataAll()
+                            navController.popBackStack(DurgaRoutes.HOME, inclusive = false)
+                        },
+                        onBack = { navController.popBackStack() },
+                        onQuickExit = { viewModel.triggerQuickExit() },
+                        onNavigateToAuthorityPortal = { navController.navigate(DurgaRoutes.AUTHORITY_PORTAL) },
+                        onNavigate = { route ->
+                            when (route) {
+                                "home" -> navController.navigate(DurgaRoutes.HOME) { popUpTo(DurgaRoutes.HOME) { inclusive = true } }
+                                "complaint" -> navController.navigate(DurgaRoutes.COMPLAINT_CATEGORIES)
+                                "vault" -> navController.navigate(DurgaRoutes.PRIVATE_VAULT)
+                                "cases" -> navController.navigate(DurgaRoutes.MY_CASES)
+                                "settings" -> { /* Already here */ }
+                            }
+                        }
+                    )
+                }
+
+                // 22. Privacy Center
                 composable(DurgaRoutes.PRIVACY_CENTER) {
                     PrivacyCenterScreen(
                         currentLanguage = currentLang,

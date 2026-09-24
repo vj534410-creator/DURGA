@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DURGA — Police & Law Enforcement Officer Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="top-nav">
+      <div class="nav-brand">
+        <div class="badge-shield">🛡️</div>
+        <div>
+          <h2>POLICE & NODAL OFFICER PORTAL</h2>
+          <small>Government of Gujarat / Statutory Law Enforcement Desk</small>
+        </div>
+      </div>
+      <div class="officer-session">
+        <div class="officer-badge-info">
+          <span class="badge-number" id="session-badge">BADGE: POL-GJ-4029</span>
+          <span class="officer-name" id="session-name">Inspector R. Sharma (Duty Officer)</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="switchOfficerBadge()">Change Badge</button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-body">
+      <!-- Left: Assigned Cases List -->
+      <section class="cases-pane">
+        <div class="pane-header">
+          <div>
+            <h3>Assigned Incident Reports</h3>
+            <span class="cases-count" id="assigned-cases-count">Loading...</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="refreshOfficerCases()">↻ Sync Cases</button>
+        </div>
+
+        <div class="case-cards-list" id="officer-cases-list">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- Right: Case Review & Investigation Action Dossier -->
+      <section class="review-pane" id="review-pane">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📂</div>
+          <h4>Select a complaint from the left to start statutory review</h4>
+          <p>You can inspect original citizen facts, verify encrypted evidence, update police status, and submit dispatch remarks.</p>
+        </div>
+
+        <div class="dossier-content" id="dossier-content" style="display:none;">
+          <div class="dossier-header">
+            <div>
+              <span class="tag-category" id="dossier-category">CATEGORY</span>
+              <h2 id="dossier-title">Case Title</h2>
+              <span class="ref-id" id="dossier-ref">DURGA-2026-XXXXX</span>
+            </div>
+            <div class="dossier-status-box">
+              <span class="status-pill" id="dossier-status">UNDER_INVESTIGATION</span>
+            </div>
+          </div>
+
+          <div class="dossier-grid">
+            <div class="detail-box">
+              <label>Incident Date & Time</label>
+              <div class="val" id="dossier-datetime">2026-09-24 • 14:30</div>
+            </div>
+            <div class="detail-box">
+              <label>Jurisdiction Location</label>
+              <div class="val" id="dossier-location">Gandhinagar, Gujarat</div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <h4>Incident Narrative / Victim Statement</h4>
+            <div class="narrative-box" id="dossier-narrative">
+              Loading incident narrative...
+            </div>
+          </div>
+
+          <div class="section-card">
+            <h4>Deposited Evidence Vault</h4>
+            <div class="evidence-list" id="dossier-evidence">
+              <div class="evidence-chip">
+                <span>📎 Digital Evidence Item #1 (Photo Hash Verified)</span>
+                <span class="hash-tag">SHA-256 Validated</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-card action-card">
+            <h4>Investigation Status & Action Remarks</h4>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Update Statutory Status:</label>
+                <select id="action-status-select">
+                  <option value="UNDER_INVESTIGATION">UNDER INVESTIGATION</option>
+                  <option value="ACTION_TAKEN">ACTION TAKEN / PATROL DISPATCHED</option>
+                  <option value="RESOLVED">RESOLVED & CITIZEN SAFE</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Officer Dispatch Notes / Station Remarks:</label>
+              <textarea id="action-remarks" rows="3" placeholder="Enter official police action taken or instructions given to complainant..."></textarea>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-primary" onclick="submitOfficerAction()">Save Official Update & Log Audit</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

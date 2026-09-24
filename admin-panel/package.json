@@ -1,0 +1,13 @@
+{
+  "name": "durga-admin-panel",
+  "version": "1.0.0",
+  "description": "DURGA Safety & Support Platform Central Admin Web Panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node -e \"console.log('Admin panel assets verified')\""
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

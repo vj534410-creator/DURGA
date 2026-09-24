@@ -1061,8 +1061,9 @@ fun PrivacyCenterScreen(
                                     DurgaThemeMode.GREEN -> "1. Green / પ્રાકૃતિક લીલો (Nature & Safety)"
                                     DurgaThemeMode.BLACK -> "2. Black / ડાર્ક મોડ (Midnight Dark)"
                                     DurgaThemeMode.BLUE -> "3. Blue / રક્ષક બ્લુ (Guardian Blue)"
-                                    DurgaThemeMode.PINK -> "4. Pink / નારી શક્તિ (Women Power)"
-                                    DurgaThemeMode.PURPLE -> "5. Purple / શાહી ગરિમા (Royal Dignity)"
+                                    DurgaThemeMode.PINK -> "4. Pink / રાણી પિંક (Deep Rani Pink)"
+                                    DurgaThemeMode.ROSE_PINK -> "5. Rose Pink / સોફ્ટ ગુલાબી (Soft Rose Pink)"
+                                    DurgaThemeMode.PURPLE -> "6. Purple / શાહી ગરિમા (Royal Dignity)"
                                 }
 
                                 Row(
@@ -1360,12 +1361,16 @@ fun AuthorityAdminDashboardScreen(
 ) {
     var inputStaffId by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(AuthorityRole.AUTHORITY_STAFF) }
+    var activeTab by remember { mutableStateOf(0) }
+    var selectedCaseForReview by remember { mutableStateOf<CaseEntity?>(null) }
+    var updateStatusSelection by remember { mutableStateOf("UNDER_INVESTIGATION") }
+    var officerNoteText by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             DurgaTopBar(
-                title = "Authority Portal",
-                subtitle = "Authorized Police & Nodal Officer Verification",
+                title = DurgaStrings.get("authority_portal", currentLanguage),
+                subtitle = DurgaStrings.get("authority_portal_sub", currentLanguage),
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
@@ -1413,14 +1418,22 @@ fun AuthorityAdminDashboardScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Official Review Sign-In",
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "સત્તાવાર સમીક્ષા સાઇન-ઇન"
+                                            DurgaLanguage.HINDI -> "आधिकारिक समीक्षा साइन-इन"
+                                            DurgaLanguage.ENGLISH -> "Official Review Sign-In"
+                                        },
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = DurgaTextNavy
                                         )
                                     )
                                     Text(
-                                        text = "Statutory access for registered law enforcement staff",
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "નોંધાયેલ પોલીસ અને નોડલ અધિકારીઓ માટે અધિકૃત ઍક્સેસ"
+                                            DurgaLanguage.HINDI -> "पंजीकृत पुलिस एवं नोडल अधिकारियों के लिए वैधानिक पहुंच"
+                                            DurgaLanguage.ENGLISH -> "Statutory access for registered law enforcement staff"
+                                        },
                                         style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted)
                                     )
                                 }
@@ -1431,7 +1444,15 @@ fun AuthorityAdminDashboardScreen(
                             OutlinedTextField(
                                 value = inputStaffId,
                                 onValueChange = { inputStaffId = it },
-                                label = { Text("Badge ID / Officer Service Number") },
+                                label = {
+                                    Text(
+                                        when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "બેજ ID / સર્વિસ નંબર (દા.ત. GJ-POL-782)"
+                                            DurgaLanguage.HINDI -> "बैज आईडी / सर्विस नंबर (उदा. POL-782)"
+                                            DurgaLanguage.ENGLISH -> "Badge ID / Officer Service Number"
+                                        }
+                                    )
+                                },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -1443,7 +1464,11 @@ fun AuthorityAdminDashboardScreen(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
-                                text = "Select Department Role:",
+                                text = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "વિભાગીય ભૂમિકા પસંદ કરો:"
+                                    DurgaLanguage.HINDI -> "विभागीय भूमिका चुनें:"
+                                    DurgaLanguage.ENGLISH -> "Select Department Role:"
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = DurgaTextNavy
@@ -1492,7 +1517,15 @@ fun AuthorityAdminDashboardScreen(
                                     .fillMaxWidth()
                                     .minimumInteractiveComponentSize()
                             ) {
-                                Text("Authenticate Officer Session", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "અધિકારી સત્ર પ્રમાણિત કરો (Login)"
+                                        DurgaLanguage.HINDI -> "अधिकारी सत्र सत्यापित करें (Login)"
+                                        DurgaLanguage.ENGLISH -> "Authenticate Officer Session"
+                                    },
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -1519,7 +1552,7 @@ fun AuthorityAdminDashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "Officer: $staffId (${currentRole.title})",
                                         style = MaterialTheme.typography.titleSmall.copy(
@@ -1540,67 +1573,224 @@ fun AuthorityAdminDashboardScreen(
                         }
                     }
 
+                    // Tabs: Assigned Cases vs Audit Logs
                     item {
-                        Text(
-                            text = "Assigned Cases (${casesList.size})",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = DurgaTextNavy
-                            )
-                        )
-                    }
-
-                    items(casesList) { caseItem ->
-                        Card(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    onRecordAuditAction(caseItem.caseId, "VIEW_CASE", "Reviewing incident report")
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight)
+                                .background(DurgaSurfaceWhite, RoundedCornerShape(10.dp))
+                                .border(1.dp, DurgaBorderLight, RoundedCornerShape(10.dp))
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = caseItem.caseId,
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = DurgaPrimaryNavy
-                                        )
-                                    )
-                                    Text(
-                                        text = caseItem.status.replace("_", " "),
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = DurgaSuccessGreen
-                                        ),
-                                        modifier = Modifier
-                                            .background(DurgaSuccessLight, RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
+                            Button(
+                                onClick = { activeTab = 0 },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (activeTab == 0) DurgaPrimaryNavy else Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "કેસ યાદી (${casesList.size})"
+                                        DurgaLanguage.HINDI -> "केस सूची (${casesList.size})"
+                                        DurgaLanguage.ENGLISH -> "Cases (${casesList.size})"
+                                    },
+                                    color = if (activeTab == 0) Color.White else DurgaTextNavy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = { activeTab = 1 },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (activeTab == 1) DurgaPrimaryNavy else Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
-                                    text = caseItem.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = DurgaTextNavy
-                                    )
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "ઓડિટ ટ્રાયલ (${auditLogs.size})"
+                                        DurgaLanguage.HINDI -> "ऑडिट ट्रेल (${auditLogs.size})"
+                                        DurgaLanguage.ENGLISH -> "Audit Trail (${auditLogs.size})"
+                                    },
+                                    color = if (activeTab == 1) Color.White else DurgaTextNavy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
                                 )
-                                Text(
-                                    text = caseItem.category,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextSecondaryMuted,
-                                        fontSize = 11.sp
-                                    )
-                                )
+                            }
+                        }
+                    }
+
+                    if (activeTab == 0) {
+                        // Assigned Cases List
+                        if (casesList.isEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = DurgaSuccessGreen,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = when (currentLanguage) {
+                                                DurgaLanguage.GUJARATI -> "કોઈ પેન્ડિંગ કેસ નથી"
+                                                DurgaLanguage.HINDI -> "कोई लंबित केस नहीं है"
+                                                DurgaLanguage.ENGLISH -> "No pending complaints assigned"
+                                            },
+                                            fontWeight = FontWeight.Bold,
+                                            color = DurgaTextNavy
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(casesList) { caseItem ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedCaseForReview = caseItem
+                                            updateStatusSelection = caseItem.status
+                                            officerNoteText = ""
+                                            onRecordAuditAction(caseItem.caseId, "VIEW_CASE", "Officer $staffId reviewing details")
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = caseItem.caseId,
+                                                style = MaterialTheme.typography.titleSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = DurgaPrimaryNavy
+                                                )
+                                            )
+                                            Text(
+                                                text = caseItem.status.replace("_", " "),
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = when (caseItem.status) {
+                                                        "RESOLVED" -> DurgaSuccessGreen
+                                                        "UNDER_INVESTIGATION" -> Color(0xFFD97706)
+                                                        else -> DurgaPrimaryNavy
+                                                    }
+                                                ),
+                                                modifier = Modifier
+                                                    .background(
+                                                        when (caseItem.status) {
+                                                            "RESOLVED" -> DurgaSuccessLight
+                                                            "UNDER_INVESTIGATION" -> Color(0xFFFEF3C7)
+                                                            else -> DurgaBlueLightBg
+                                                        },
+                                                        RoundedCornerShape(4.dp)
+                                                    )
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = caseItem.title,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = DurgaTextNavy
+                                            )
+                                        )
+                                        Text(
+                                            text = "${caseItem.category} • Tap to review & update status",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = DurgaTextSecondaryMuted,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Audit Logs List
+                        if (auditLogs.isEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "No audit events recorded yet",
+                                            fontWeight = FontWeight.Medium,
+                                            color = DurgaTextSecondaryMuted
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(auditLogs) { log ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Action: ${log.action}",
+                                                fontWeight = FontWeight.Bold,
+                                                color = DurgaPrimaryNavy,
+                                                fontSize = 13.sp
+                                            )
+                                            Text(
+                                                text = "Case: ${log.caseId.take(12)}",
+                                                fontSize = 11.sp,
+                                                color = DurgaTextSecondaryMuted
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Authority: ${log.authorityId} (${log.role})",
+                                            fontSize = 12.sp,
+                                            color = DurgaTextNavy
+                                        )
+                                        Text(
+                                            text = "Reason: ${log.reason}",
+                                            fontSize = 11.sp,
+                                            color = DurgaTextSecondaryMuted
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1614,6 +1804,104 @@ fun AuthorityAdminDashboardScreen(
                 }
             }
         }
+    }
+
+    // Case Review & Status Update Dialog
+    if (selectedCaseForReview != null) {
+        val currentCase = selectedCaseForReview!!
+        AlertDialog(
+            onDismissRequest = { selectedCaseForReview = null },
+            title = {
+                Text(
+                    text = "Official Case Review: ${currentCase.caseId}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = DurgaTextNavy
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Title: ${currentCase.title}",
+                        fontWeight = FontWeight.SemiBold,
+                        color = DurgaTextNavy,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = "Category: ${currentCase.category}",
+                        color = DurgaTextSecondaryMuted,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = "Description:\n${currentCase.structuredDescription.ifBlank { currentCase.originalDescription }}",
+                        color = DurgaTextNavy,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    HorizontalDivider()
+
+                    Text(
+                        text = "Set Investigation Status:",
+                        fontWeight = FontWeight.Bold,
+                        color = DurgaTextNavy,
+                        fontSize = 12.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("UNDER_INVESTIGATION", "ACTION_TAKEN", "RESOLVED").forEach { statusOpt ->
+                            val isChosen = updateStatusSelection == statusOpt
+                            FilterChip(
+                                selected = isChosen,
+                                onClick = { updateStatusSelection = statusOpt },
+                                label = {
+                                    Text(
+                                        text = statusOpt.replace("_", " "),
+                                        fontSize = 10.sp
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = DurgaPrimaryNavy,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = officerNoteText,
+                        onValueChange = { officerNoteText = it },
+                        label = { Text("Officer Action Remarks / Dispatch Note", fontSize = 11.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 2
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val notes = officerNoteText.ifBlank { "Status updated by Officer $staffId to $updateStatusSelection" }
+                        onUpdateCaseStatus(currentCase.caseId, updateStatusSelection, notes)
+                        onRecordAuditAction(currentCase.caseId, "STATUS_UPDATE", "Status set to $updateStatusSelection. Note: $notes")
+                        selectedCaseForReview = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy)
+                ) {
+                    Text("Save & Log Audit", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedCaseForReview = null }) {
+                    Text("Cancel", color = DurgaTextSecondaryMuted)
+                }
+            }
+        )
     }
 }
 

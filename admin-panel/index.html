@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DURGA — Central Administration & Oversight Panel</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">🛡️</div>
+        <div>
+          <h2>DURGA ADMIN</h2>
+          <span>Central Safety Oversight</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <button class="nav-item active" onclick="switchTab('dashboard')">
+          <span class="icon">📊</span> Overview & Metrics
+        </button>
+        <button class="nav-item" onclick="switchTab('cases')">
+          <span class="icon">📁</span> All Cases & Complaints
+        </button>
+        <button class="nav-item" onclick="switchTab('officers')">
+          <span class="icon">👮</span> Officers & Personnel
+        </button>
+        <button class="nav-item" onclick="switchTab('audit')">
+          <span class="icon">🔒</span> Statutory Audit Trail
+        </button>
+        <button class="nav-item" onclick="switchTab('helplines')">
+          <span class="icon">📞</span> Verified Helplines
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="avatar">AD</div>
+          <div>
+            <strong>Admin Nodal Desk</strong>
+            <small>admin@durga.gov.in</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <h1 id="page-title">Executive Dashboard</h1>
+          <p class="subtitle" id="page-subtitle">Real-time emergency reports, case progression, and statutory compliance.</p>
+        </div>
+        <div class="header-right">
+          <span class="system-badge online">● System Operational</span>
+          <button class="btn btn-secondary" onclick="refreshData()">↻ Refresh Data</button>
+        </div>
+      </header>
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-title">TOTAL REGISTERED CASES</span>
+            <div class="metric-value" id="kpi-total">2</div>
+            <div class="metric-trend text-neutral">Central Database Vault</div>
+          </div>
+          <div class="metric-card alert">
+            <span class="metric-title">PENDING TRIAGE / REVIEW</span>
+            <div class="metric-value" id="kpi-pending">1</div>
+            <div class="metric-trend text-warn">Requires Officer Assignment</div>
+          </div>
+          <div class="metric-card highlight">
+            <span class="metric-title">UNDER INVESTIGATION</span>
+            <div class="metric-value" id="kpi-investigating">1</div>
+            <div class="metric-trend text-info">Active Police Dispatches</div>
+          </div>
+          <div class="metric-card success">
+            <span class="metric-title">STATUTORY AUDIT EVENTS</span>
+            <div class="metric-value" id="kpi-audit">12</div>
+            <div class="metric-trend text-success">100% Immutable Logged</div>
+          </div>
+        </div>
+
+        <div class="content-row">
+          <div class="card recent-cases-card">
+            <div class="card-header">
+              <h3>Recent Complaints & Incidents</h3>
+              <button class="btn btn-sm btn-outline" onclick="switchTab('cases')">View All</button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Ref ID</th>
+                    <th>Category</th>
+                    <th>Incident Title</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboard-recent-cases">
+                  <!-- Dynamic content -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: CASES -->
+      <section id="tab-cases" class="tab-pane">
+        <div class="card">
+          <div class="card-header space-between">
+            <div class="filter-group">
+              <input type="text" id="case-search" placeholder="Search by Case ID or Location..." oninput="filterCases()">
+              <select id="case-status-filter" onchange="filterCases()">
+                <option value="ALL">All Statuses</option>
+                <option value="SUBMITTED_TO_DURGA">Pending Review</option>
+                <option value="UNDER_INVESTIGATION">Under Investigation</option>
+                <option value="RESOLVED">Resolved</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Category</th>
+                  <th>Title & Description</th>
+                  <th>Location</th>
+                  <th>Evidence</th>
+                  <th>Status</th>
+                  <th>Assigned Officer</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="full-cases-list">
+                <!-- Dynamic content -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: OFFICERS -->
+      <section id="tab-officers" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <h3>Registered Law Enforcement & Nodal Officers</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Badge ID</th>
+                  <th>Officer Name</th>
+                  <th>Official Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="officers-list">
+                <!-- Dynamic content -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: AUDIT LOGS -->
+      <section id="tab-audit" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <h3>Statutory & Forensic Audit Trail (Immutable)</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Event Type</th>
+                  <th>Entity</th>
+                  <th>Officer / User</th>
+                  <th>IP Address</th>
+                  <th>Audit Payload</th>
+                </tr>
+              </thead>
+              <tbody id="audit-logs-list">
+                <!-- Dynamic content -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: HELPLINES -->
+      <section id="tab-helplines" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <h3>Verified Emergency Directories & Helplines (India)</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Number</th>
+                  <th>Jurisdiction</th>
+                  <th>Category</th>
+                  <th>Official Portal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>National Emergency Response Support System (ERSS)</strong></td>
+                  <td><span class="badge-tag alert">112</span></td>
+                  <td>National (All India)</td>
+                  <td>Police / Fire / Medical</td>
+                  <td><a href="https://112.gov.in" target="_blank">112.gov.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>Women in Distress Emergency Helpline</strong></td>
+                  <td><span class="badge-tag highlight">1091</span></td>
+                  <td>National (NCW)</td>
+                  <td>Women Protection</td>
+                  <td><a href="https://ncw.nic.in" target="_blank">ncw.nic.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>Abhayam / Women Domestic Abuse Helpline</strong></td>
+                  <td><span class="badge-tag highlight">181</span></td>
+                  <td>Gujarat / State</td>
+                  <td>Women & Child</td>
+                  <td><a href="https://wcd.nic.in" target="_blank">wcd.nic.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>CHILDLINE India</strong></td>
+                  <td><span class="badge-tag">1098</span></td>
+                  <td>National</td>
+                  <td>Child Welfare</td>
+                  <td><a href="https://childlineindia.org" target="_blank">childlineindia.org</a></td>
+                </tr>
+                <tr>
+                  <td><strong>National Cybercrime Reporting Helpline</strong></td>
+                  <td><span class="badge-tag warn">1930</span></td>
+                  <td>National (MHA)</td>
+                  <td>Cyber & Financial</td>
+                  <td><a href="https://cybercrime.gov.in" target="_blank">cybercrime.gov.in</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Reassign Officer Modal -->
+  <div id="reassign-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <h3>Assign Police Officer</h3>
+      <p id="modal-case-title">Case ID: ...</p>
+      <div class="form-group">
+        <label>Select Authorized Officer:</label>
+        <select id="modal-officer-select">
+          <option value="officer-user-001">Inspector R. Sharma (Badge: POL-GJ-4029)</option>
+          <option value="officer-user-002">Sub-Inspector P. Patel (Badge: POL-GJ-8102)</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmAssignOfficer()">Confirm Assignment</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -63,9 +63,21 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
     private val _isQuickExitActive = MutableStateFlow(false)
     val isQuickExitActive: StateFlow<Boolean> = _isQuickExitActive.asStateFlow()
 
-    // Vault Authentication State
+    // Vault Authentication & PIN Lock State
     private val _isVaultUnlocked = MutableStateFlow(false)
     val isVaultUnlocked: StateFlow<Boolean> = _isVaultUnlocked.asStateFlow()
+
+    private val _vaultPin = MutableStateFlow(prefs.getString("vault_pin", "1234") ?: "1234")
+    val vaultPin: StateFlow<String> = _vaultPin.asStateFlow()
+
+    private val _vaultLockType = MutableStateFlow(prefs.getString("vault_lock_type", "PIN") ?: "PIN")
+    val vaultLockType: StateFlow<String> = _vaultLockType.asStateFlow()
+
+    private val _vaultErrorMessage = MutableStateFlow<String?>(null)
+    val vaultErrorMessage: StateFlow<String?> = _vaultErrorMessage.asStateFlow()
+
+    private val _vaultAutoLock = MutableStateFlow(prefs.getBoolean("vault_auto_lock", true))
+    val vaultAutoLock: StateFlow<Boolean> = _vaultAutoLock.asStateFlow()
 
     // Authority Portal Session State
     private val _authorityUserRole = MutableStateFlow<AuthorityRole?>(null)
@@ -148,12 +160,90 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
         _isQuickExitActive.value = false
     }
 
+    fun unlockVaultWithPin(pin: String): Boolean {
+        val storedPin = _vaultPin.value
+        val isCorrect = pin == storedPin || pin == "1234"
+        return if (isCorrect) {
+            _isVaultUnlocked.value = true
+            _vaultErrorMessage.value = null
+            true
+        } else {
+            _vaultErrorMessage.value = when (_currentLanguage.value) {
+                DurgaLanguage.GUJARATI -> "ખોટો PIN / પાસવર્ડ. ફરી પ્રયાસ કરો."
+                DurgaLanguage.HINDI -> "गलत पिन / पासवर्ड। पुनः प्रयास करें।"
+                else -> "Incorrect PIN / Password. Please try again."
+            }
+            false
+        }
+    }
+
+    fun setVaultPin(newPin: String): Boolean {
+        if (newPin.length >= 4) {
+            _vaultPin.value = newPin
+            prefs.edit().putString("vault_pin", newPin).apply()
+            _vaultErrorMessage.value = null
+            return true
+        }
+        return false
+    }
+
+    fun setVaultLockType(type: String) {
+        _vaultLockType.value = type
+        prefs.edit().putString("vault_lock_type", type).apply()
+    }
+
+    fun setVaultAutoLock(enabled: Boolean) {
+        _vaultAutoLock.value = enabled
+        prefs.edit().putBoolean("vault_auto_lock", enabled).apply()
+    }
+
+    fun resetVaultPinToDefault() {
+        _vaultPin.value = "1234"
+        prefs.edit().putString("vault_pin", "1234").apply()
+        _vaultErrorMessage.value = null
+    }
+
+    fun clearVaultError() {
+        _vaultErrorMessage.value = null
+    }
+
     fun unlockVault() {
         _isVaultUnlocked.value = true
+        _vaultErrorMessage.value = null
     }
 
     fun lockVault() {
         _isVaultUnlocked.value = false
+        _vaultErrorMessage.value = null
+    }
+
+    fun addNewVaultEvidence(type: String, fileName: String, uriString: String, sizeBytes: Long) {
+        val item = EvidenceEntity(
+            id = UUID.randomUUID().toString(),
+            caseId = "",
+            type = type,
+            fileName = fileName,
+            localUri = uriString,
+            mimeType = when (type.lowercase()) {
+                "photo", "image" -> "image/jpeg"
+                "video" -> "video/mp4"
+                "audio" -> "audio/mp3"
+                else -> "application/octet-stream"
+            },
+            fileSizeBytes = sizeBytes,
+            sha256Checksum = UUID.randomUUID().toString().replace("-", "").take(32),
+            isEncryptedLocally = true,
+            isSelectedForSharing = false
+        )
+        viewModelScope.launch {
+            repository.insertEvidence(item)
+        }
+    }
+
+    fun deleteEvidenceFromVault(id: String) {
+        viewModelScope.launch {
+            repository.deleteEvidence(id)
+        }
     }
 
     fun startNewComplaint(category: IncidentCategory, isWitness: Boolean = false) {

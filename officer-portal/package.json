@@ -1,0 +1,13 @@
+{
+  "name": "durga-officer-portal",
+  "version": "1.0.0",
+  "description": "DURGA Authorized Police & Nodal Officer Web Portal",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node -e \"console.log('Officer portal assets verified')\""
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

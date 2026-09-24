@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  durga-postgres:
+    image: postgres:16-alpine
+    container_name: durga-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: durga_admin
+      POSTGRES_PASSWORD: durga_secure_pass_2026
+      POSTGRES_DB: durga_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ../database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+
+  durga-backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: durga-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://durga_admin:durga_secure_pass_2026@durga-postgres:5432/durga_platform
+      JWT_SECRET: durga_prod_jwt_secret_statutory_2026
+    depends_on:
+      - durga-postgres
+
+  durga-admin-panel:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.admin
+    container_name: durga-admin-panel
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      ADMIN_PORT: 3001
+
+  durga-officer-portal:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.officer
+    container_name: durga-officer-portal
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      OFFICER_PORT: 3002
+
+volumes:
+  pgdata:

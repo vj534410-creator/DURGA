@@ -99,6 +99,7 @@ fun DurgaTopBar(
     onQuickExit: () -> Unit,
     onToggleAccessibility: (() -> Unit)? = null,
     onOpenThemePicker: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
     subtitle: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -183,22 +184,6 @@ fun DurgaTopBar(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Theme Picker Icon Button
-                if (onOpenThemePicker != null) {
-                    IconButton(
-                        onClick = onOpenThemePicker,
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("theme_picker_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = "Change Theme",
-                            tint = colors.primary
-                        )
-                    }
-                }
-
                 // Language Switcher
                 Box {
                     IconButton(
@@ -405,8 +390,9 @@ fun ThemeSelectionDialog(
                                             DurgaThemeMode.GREEN -> "1. Green / પ્રકૃતિ અને શાંતિ"
                                             DurgaThemeMode.BLACK -> "2. Black / ડાર્ક નાઈટ મોડ"
                                             DurgaThemeMode.BLUE -> "3. Blue / રક્ષક બ્લુ (Default)"
-                                            DurgaThemeMode.PINK -> "4. Pink / નારી શક્તિ (Women Power)"
-                                            DurgaThemeMode.PURPLE -> "5. Purple / શાહી ગરિમા"
+                                            DurgaThemeMode.PINK -> "4. Pink / રાણી ગુલાબી (Rani Pink)"
+                                            DurgaThemeMode.ROSE_PINK -> "5. Rose Pink / સોફ્ટ કમળ પિંક (Rose Pink)"
+                                            DurgaThemeMode.PURPLE -> "6. Purple / શાહી ગરિમા"
                                         },
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary,
@@ -692,9 +678,9 @@ fun DurgaBottomNav(
         val items = listOf(
             Triple("home", DurgaStrings.get("nav_home", currentLanguage), Icons.Outlined.Home),
             Triple("complaint", DurgaStrings.get("file_complaint_now", currentLanguage), Icons.Filled.EditNote),
+            Triple("vault", DurgaStrings.get("qa_evidence_vault", currentLanguage), Icons.Outlined.Lock),
             Triple("cases", DurgaStrings.get("nav_cases", currentLanguage), Icons.Outlined.FolderShared),
-            Triple("help", DurgaStrings.get("nav_help", currentLanguage), Icons.Outlined.HelpOutline),
-            Triple("theme", DurgaStrings.get("theme_selection", currentLanguage), Icons.Outlined.Palette)
+            Triple("settings", DurgaStrings.get("settings", currentLanguage), Icons.Outlined.Settings)
         )
 
         items.forEach { (route, label, icon) ->

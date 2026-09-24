@@ -1,0 +1,144 @@
+openapi: 3.0.3
+info:
+  title: DURGA Safety & Support Platform API
+  description: Central REST API for Citizens, Law Enforcement Officers, and Administrators.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local Development Server
+  - url: https://durga-api.safety.gov.in
+    description: Production Gateway
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: Backend and database are healthy
+  /api/auth/register:
+    post:
+      summary: Register citizen user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone_number:
+                  type: string
+                full_name:
+                  type: string
+      responses:
+        '201':
+          description: User created with JWT
+  /api/auth/officer-login:
+    post:
+      summary: Authenticate police / statutory authority via Badge ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [badgeId]
+              properties:
+                badgeId:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated officer session
+  /api/cases:
+    post:
+      summary: Create or file a complaint/case
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, category]
+              properties:
+                caseId:
+                  type: string
+                category:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                incidentLocation:
+                  type: string
+      responses:
+        '201':
+          description: Case created and deposited in central database
+    get:
+      summary: List cases
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Filtered case list
+  /api/cases/{id}/status:
+    patch:
+      summary: Update investigation status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                remarks:
+                  type: string
+                officerBadge:
+                  type: string
+      responses:
+        '200':
+          description: Status updated and audit log recorded
+  /api/officers/my-cases:
+    get:
+      summary: Get cases assigned to specific officer
+      parameters:
+        - name: badgeId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Officer assigned cases
+  /api/admin/stats:
+    get:
+      summary: Global case metrics and health
+      responses:
+        '200':
+          description: Dashboard statistics
+  /api/admin/audit-logs:
+    get:
+      summary: Tamper-evident audit logs
+      responses:
+        '200':
+          description: Audit logs list
+  /api/government/submit:
+    post:
+      summary: Forward case to official government/police integration
+      responses:
+        '200':
+          description: Submission queued with READY_FOR_OFFICIAL_INTEGRATION status
+  /api/ai/draft-complaint:
+    post:
+      summary: Structure raw incident facts into formal legal draft
+      responses:
+        '200':
+          description: Formatted complaint narrative

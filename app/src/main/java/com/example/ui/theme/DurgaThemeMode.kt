@@ -9,12 +9,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
- * 5 distinct theme options requested by the user:
+ * Distinct theme options requested by the user:
  * 1. GREEN (Emerald Nature & Safety)
  * 2. BLACK (AMOLED Midnight Dark Mode)
  * 3. BLUE (Guardian Royal Blue)
- * 4. PINK (Women Power / Stree Shakti Magenta Pink)
- * 5. PURPLE (Royal Dignity Violet)
+ * 4. PINK (Deep Rani Pink / Women Power)
+ * 5. ROSE_PINK (Soft Blossom & Lotus Rose Pink)
+ * 6. PURPLE (Royal Dignity Violet)
  */
 enum class DurgaThemeMode(
     val id: String,
@@ -54,18 +55,27 @@ enum class DurgaThemeMode(
     ),
     PINK(
         id = "pink",
-        titleEn = "Pink (Women Power)",
-        titleGu = "પિંક (નારી શક્તિ)",
-        titleHi = "पिंक (नारी शक्ति)",
-        primaryColor = Color(0xFFD81B60), // Vibrant Women Empowerment Rose Pink
+        titleEn = "Pink (Deep Rani Pink)",
+        titleGu = "પિંક (રાણી ગુલાબી / નારી શક્તિ)",
+        titleHi = "पिंक (रानी गुलाबी / नारी शक्ति)",
+        primaryColor = Color(0xFFD81B60), // Vibrant Women Empowerment Magenta Pink
         accentColor = Color(0xFFEC4899),
+        isDark = false
+    ),
+    ROSE_PINK(
+        id = "rose_pink",
+        titleEn = "Rose Pink (Soft Blossom)",
+        titleGu = "રોઝ પિંક (કમળ સોફ્ટ ગુલાબી)",
+        titleHi = "रोज़ पिंक (कोमल कमल गुलाबी)",
+        primaryColor = Color(0xFFF43F5E), // Vibrant Rose Blossom Pink
+        accentColor = Color(0xFFFDA4AF),
         isDark = false
     ),
     PURPLE(
         id = "purple",
         titleEn = "Purple (Royal Dignity)",
         titleGu = "પર્પલ (શાહી શક્તિ)",
-        titleHi = "पर्पल (रॉयल गरिमा)",
+        titleHi = "पर्पल (રॉयल गरिमा)",
         primaryColor = Color(0xFF7C3AED), // Royal Violet
         accentColor = Color(0xFF8B5CF6),
         isDark = false
@@ -146,6 +156,19 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFF4A0E2E),
             textSecondary = Color(0xFF833857),
             textMuted = Color(0xFFA8637F),
+            isDark = false
+        )
+        DurgaThemeMode.ROSE_PINK -> DurgaCustomColors(
+            primary = Color(0xFFE11D48),
+            primaryContainer = Color(0xFFFFE4E6),
+            secondary = Color(0xFFF43F5E),
+            background = Color(0xFFFFF1F2),
+            surface = Color(0xFFFFFFFF),
+            surfaceVariant = Color(0xFFFFF0F3),
+            outline = Color(0xFFFECDD3),
+            textPrimary = Color(0xFF881337),
+            textSecondary = Color(0xFF9F1239),
+            textMuted = Color(0xFFBE123C),
             isDark = false
         )
         DurgaThemeMode.PURPLE -> DurgaCustomColors(

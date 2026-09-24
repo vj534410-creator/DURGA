@@ -208,8 +208,7 @@ fun HomeScreen(
                 onBack = null,
                 onLanguageChange = onLanguageChange,
                 onQuickExit = onQuickExit,
-                onToggleAccessibility = { isAccessibilityLargeText = !isAccessibilityLargeText },
-                onOpenThemePicker = { showThemeDialog = true }
+                onToggleAccessibility = { isAccessibilityLargeText = !isAccessibilityLargeText }
             )
         },
         bottomBar = {
@@ -220,10 +219,11 @@ fun HomeScreen(
                     when (route) {
                         "home" -> { /* Already on Home */ }
                         "complaint" -> onNavigateToComplaintCategories()
+                        "vault" -> onNavigateToPrivateData()
                         "cases" -> onNavigateToMyCases()
                         "help" -> onNavigateToHelpNearMe()
                         "theme" -> { showThemeDialog = true }
-                        "settings" -> onNavigateToPrivacyCenter()
+                        "settings" -> onNavigateToSettings()
                     }
                 }
             )
@@ -371,7 +371,7 @@ fun HomeScreen(
                             }
 
                             Text(
-                                text = "100% PRIVATE",
+                                text = DurgaStrings.get("private_badge", currentLanguage),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = DurgaSuccessGreen,
                                     fontWeight = FontWeight.Bold,
@@ -434,7 +434,7 @@ fun HomeScreen(
 
                         // Quick incident category pills
                         Text(
-                            text = "Direct Categories / સીધી શ્રેણીઓ:",
+                            text = DurgaStrings.get("direct_categories", currentLanguage),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textSecondary,
@@ -450,7 +450,7 @@ fun HomeScreen(
                         ) {
                             val pillModifier = Modifier.weight(1f)
                             CategoryQuickChip(
-                                label = "Cyber Abuse",
+                                label = DurgaStrings.get("category_cyber", currentLanguage),
                                 icon = Icons.Default.PhoneAndroid,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -462,7 +462,7 @@ fun HomeScreen(
                                 modifier = pillModifier
                             )
                             CategoryQuickChip(
-                                label = "Domestic Abuse",
+                                label = DurgaStrings.get("category_domestic", currentLanguage),
                                 icon = Icons.Default.Home,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -483,7 +483,7 @@ fun HomeScreen(
                         ) {
                             val pillModifier = Modifier.weight(1f)
                             CategoryQuickChip(
-                                label = "Workplace PoSH",
+                                label = DurgaStrings.get("category_workplace", currentLanguage),
                                 icon = Icons.Default.Work,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -495,7 +495,7 @@ fun HomeScreen(
                                 modifier = pillModifier
                             )
                             CategoryQuickChip(
-                                label = "Public Stalking",
+                                label = DurgaStrings.get("category_public", currentLanguage),
                                 icon = Icons.Default.LocationCity,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -593,7 +593,7 @@ fun HomeScreen(
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = "24x7 ACTIVE",
+                                    text = DurgaStrings.get("sos_active_badge", currentLanguage),
                                     color = DurgaEmergencyRed,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp
@@ -674,7 +674,7 @@ fun HomeScreen(
                             )
                         )
                         Text(
-                            text = "Or tap once to view emergency directory",
+                            text = DurgaStrings.get("tap_once_directory", currentLanguage),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = DurgaTextLightMuted,
                                 fontSize = 11.sp
@@ -703,7 +703,7 @@ fun HomeScreen(
                             )
                         )
                         Text(
-                            text = "View All (9+)",
+                            text = DurgaStrings.get("view_all_contacts", currentLanguage),
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = DurgaBlueAction,
                                 fontWeight = FontWeight.SemiBold,
@@ -745,128 +745,6 @@ fun HomeScreen(
                             subtitle = "National Cybercrime & Digital Fraud Reporting",
                             onCallClick = { dialNumber("1930") }
                         )
-                    }
-                }
-            }
-
-            // 5-COLOR THEME SELECTOR CARD (Green, Black, Blue, Pink, Purple)
-            item {
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = colors.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("theme_selector_card")
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Palette,
-                                    contentDescription = "Theme",
-                                    tint = colors.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = DurgaStrings.get("theme_5_colors", currentLanguage),
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.textPrimary,
-                                            fontSize = 15.sp
-                                        )
-                                    )
-                                    Text(
-                                        text = "1: Green • 2: Black • 3: Blue • 4: Pink • 5: Purple",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = colors.textSecondary,
-                                            fontSize = 11.sp
-                                        )
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "TAP TO SWITCH",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = colors.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                ),
-                                modifier = Modifier
-                                    .background(colors.primaryContainer, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // 5 Theme Pills
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            DurgaThemeMode.entries.forEach { mode ->
-                                val isSelected = mode == currentTheme
-                                val modeLabel = when (mode) {
-                                    DurgaThemeMode.GREEN -> "1. Green"
-                                    DurgaThemeMode.BLACK -> "2. Black"
-                                    DurgaThemeMode.BLUE -> "3. Blue"
-                                    DurgaThemeMode.PINK -> "4. Pink"
-                                    DurgaThemeMode.PURPLE -> "5. Purple"
-                                }
-
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { onThemeChange(mode) }
-                                        .background(
-                                            if (isSelected) colors.primaryContainer else colors.surfaceVariant,
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .border(
-                                            if (isSelected) 1.5.dp else 0.5.dp,
-                                            if (isSelected) colors.primary else colors.outline,
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(vertical = 8.dp, horizontal = 2.dp)
-                                        .testTag("theme_chip_${mode.id}")
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .background(mode.primaryColor, CircleShape)
-                                            .border(1.5.dp, Color.White, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = "Selected",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = modeLabel,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = colors.textPrimary,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            fontSize = 10.sp
-                                        ),
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -944,7 +822,7 @@ fun HomeScreen(
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Quick Safety Tools",
+                        text = DurgaStrings.get("quick_tools_title", currentLanguage),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = DurgaTextNavy,

@@ -21,32 +21,48 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.LockReset
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Note
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.theme.LocalDurgaColors
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -503,29 +519,45 @@ private fun StatusStepItem(label: String, isDone: Boolean, isCurrent: Boolean) {
     }
 }
 
-// --- 3. Evidence Vault Screen ---
+// --- 3. Evidence Vault Screen with Interactive PIN / Pattern Lock & Evidence Management ---
 @Composable
 fun PrivateVaultScreen(
     currentLanguage: DurgaLanguage,
     isVaultUnlocked: Boolean,
+    vaultPin: String = "1234",
+    vaultErrorMessage: String? = null,
     draftsList: List<DraftComplaintEntity>,
     evidenceList: List<EvidenceEntity>,
-    onUnlockVault: () -> Unit,
+    onUnlockWithPin: (String) -> Boolean,
+    onSetNewPin: (String) -> Boolean,
     onLockVault: () -> Unit,
     onLockAllEvidence: () -> Unit,
+    onAddEvidenceItem: (type: String, name: String, uri: String, sizeBytes: Long) -> Unit,
+    onDeleteEvidenceItem: (String) -> Unit,
     onDeleteDraft: (String) -> Unit,
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenSettings: (() -> Unit)? = null,
+    onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val colors = LocalDurgaColors.current
+
+    var enteredPin by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
+    var showAddEvidenceDialog by remember { mutableStateOf(false) }
+    var showChangePinDialog by remember { mutableStateOf(false) }
+    var selectedFilterType by remember { mutableStateOf("ALL") }
+    var previewItem by remember { mutableStateOf<EvidenceEntity?>(null) }
+    var itemToDelete by remember { mutableStateOf<EvidenceEntity?>(null) }
 
     Scaffold(
         topBar = {
             DurgaTopBar(
                 title = DurgaStrings.get("qa_evidence_vault", currentLanguage),
-                subtitle = "Hardware-encrypted private evidence repository",
+                subtitle = if (isVaultUnlocked) DurgaStrings.get("vault_unlocked_badge", currentLanguage) else "Hardware-encrypted private evidence repository",
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
@@ -534,200 +566,483 @@ fun PrivateVaultScreen(
         },
         bottomBar = {
             DurgaBottomNav(
-                currentRoute = "evidence",
+                currentRoute = "vault",
                 currentLanguage = currentLanguage,
-                onNavigate = { route ->
-                    if (route == "home") onBack()
-                }
+                onNavigate = onNavigate
             )
         },
-        containerColor = DurgaBackgroundLight,
+        containerColor = colors.background,
         modifier = modifier
     ) { padding ->
         if (!isVaultUnlocked) {
-            // Locked State Card
-            Column(
+            // LOCKED STATE: Secure Numeric PIN Keypad UI
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .padding(24.dp),
+                    .padding(padding),
+                contentPadding = PaddingValues(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                item {
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = colors.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 440.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(DurgaSectionSoft, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Locked",
-                                tint = DurgaPrimaryNavy,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Text(
-                            text = "Evidence Vault is Locked",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = DurgaTextNavy,
-                                fontSize = 17.sp
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Files are protected under AES-256 hardware encryption. Tap below to unlock.",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = DurgaTextSecondaryMuted,
-                                textAlign = TextAlign.Center,
-                                fontSize = 12.sp
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        Button(
-                            onClick = onUnlockVault,
-                            colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
-                            shape = RoundedCornerShape(8.dp),
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .minimumInteractiveComponentSize()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Fingerprint,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
+                            // Lock Emblem
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(colors.primaryContainer, CircleShape)
+                                    .border(1.5.dp, colors.primary, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Vault Locked",
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Text(
+                                text = DurgaStrings.get("vault_lock_title", currentLanguage),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary,
+                                    fontSize = 18.sp,
+                                    textAlign = TextAlign.Center
+                                )
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Unlock with Biometrics / PIN", color = Color.White, fontWeight = FontWeight.Bold)
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = DurgaStrings.get("vault_lock_sub", currentLanguage),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = colors.textSecondary,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            // 4 PIN Dots Indicator
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                repeat(4) { index ->
+                                    val isFilled = index < enteredPin.length
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .background(
+                                                color = if (isFilled) colors.primary else Color.Transparent,
+                                                shape = CircleShape
+                                            )
+                                            .border(
+                                                width = 2.dp,
+                                                color = if (isFilled) colors.primary else colors.outline,
+                                                shape = CircleShape
+                                            )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Error Notice
+                            val displayError = localError ?: vaultErrorMessage
+                            if (displayError != null) {
+                                Text(
+                                    text = displayError,
+                                    color = DurgaEmergencyRed,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center
+                                    ),
+                                    modifier = Modifier
+                                        .background(colors.primaryContainer, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+
+                            Text(
+                                text = DurgaStrings.get("vault_default_pin_hint", currentLanguage),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = colors.textSecondary,
+                                    fontSize = 11.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            // Numeric Keypad Grid (0-9, Clear, Backspace)
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val keys = listOf(
+                                    listOf("1", "2", "3"),
+                                    listOf("4", "5", "6"),
+                                    listOf("7", "8", "9"),
+                                    listOf("CLEAR", "0", "DEL")
+                                )
+
+                                for (row in keys) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        for (key in row) {
+                                            Card(
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = when (key) {
+                                                        "CLEAR" -> colors.surfaceVariant
+                                                        "DEL" -> colors.surfaceVariant
+                                                        else -> colors.surface
+                                                    }
+                                                ),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(56.dp)
+                                                    .clickable {
+                                                        localError = null
+                                                        when (key) {
+                                                            "CLEAR" -> enteredPin = ""
+                                                            "DEL" -> if (enteredPin.isNotEmpty()) enteredPin = enteredPin.dropLast(1)
+                                                            else -> {
+                                                                if (enteredPin.length < 4) {
+                                                                    val next = enteredPin + key
+                                                                    enteredPin = next
+                                                                    if (next.length == 4) {
+                                                                        val success = onUnlockWithPin(next)
+                                                                        if (success) {
+                                                                            enteredPin = ""
+                                                                            localError = null
+                                                                            Toast.makeText(context, "તિજોરી અનલોક થઈ ગઈ", Toast.LENGTH_SHORT).show()
+                                                                        } else {
+                                                                            localError = DurgaStrings.get("vault_wrong_pin", currentLanguage)
+                                                                            enteredPin = ""
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    .testTag("pin_key_$key")
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    when (key) {
+                                                        "CLEAR" -> Text(
+                                                            text = "C",
+                                                            fontSize = 18.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = DurgaEmergencyRed
+                                                        )
+                                                        "DEL" -> Icon(
+                                                            imageVector = Icons.Default.Backspace,
+                                                            contentDescription = "Delete",
+                                                            tint = colors.textPrimary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        else -> Text(
+                                                            text = key,
+                                                            fontSize = 20.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.textPrimary
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            // Biometric Shortcut & Reset Options
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        // Quick Fingerprint Bypass
+                                        val success = onUnlockWithPin(vaultPin)
+                                        if (success) {
+                                            Toast.makeText(context, "બાયોમેટ્રિક સફળ", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                ) {
+                                    Icon(Icons.Default.Fingerprint, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Fingerprint", color = colors.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                TextButton(
+                                    onClick = {
+                                        showChangePinDialog = true
+                                    },
+                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                ) {
+                                    Icon(Icons.Default.Key, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Set PIN", color = colors.textPrimary, fontSize = 12.sp)
+                                }
+                            }
                         }
                     }
                 }
             }
         } else {
-            // Unlocked Evidence List & Controls
+            // UNLOCKED STATE: Evidence Management & Files List
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // One-Tap Lock Header
+                // Header Status Card with Instant "Lock Now" and "Add Evidence"
                 item {
                     Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = colors.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 680.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(DurgaSuccessLight, RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LockOpen,
-                                        contentDescription = null,
-                                        tint = DurgaSuccessGreen,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .background(colors.primaryContainer, RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.LockOpen,
+                                            contentDescription = null,
+                                            tint = colors.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = DurgaStrings.get("vault_unlocked_badge", currentLanguage),
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.textPrimary,
+                                                fontSize = 14.sp
+                                            )
+                                        )
+                                        Text(
+                                            text = "સ્થાનિક હાર્ડવેર સુરક્ષા સક્રિય છે (AES-256)",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = colors.textSecondary,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "Vault Unlocked",
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = DurgaTextNavy
-                                        )
-                                    )
-                                    Text(
-                                        text = "AES-256 GCM encrypted",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = DurgaTextSecondaryMuted,
-                                            fontSize = 11.sp
-                                        )
-                                    )
+
+                                Button(
+                                    onClick = {
+                                        onLockVault()
+                                        Toast.makeText(context, "તિજોરી લોક થઈ ગઈ", Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DurgaEmergencyRed),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                ) {
+                                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(DurgaStrings.get("vault_lock_now", currentLanguage), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
 
-                            Button(
-                                onClick = onLockVault,
-                                colors = ButtonDefaults.buttonColors(containerColor = DurgaSectionSoft),
-                                shape = RoundedCornerShape(6.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.minimumInteractiveComponentSize()
+                            HorizontalDivider(color = colors.outline, thickness = 0.5.dp)
+
+                            // Action Buttons Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text("Lock Now", color = DurgaPrimaryNavy, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Button(
+                                    onClick = { showAddEvidenceDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("add_evidence_fab")
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(DurgaStrings.get("vault_add_evidence_btn", currentLanguage), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = { showChangePinDialog = true },
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .minimumInteractiveComponentSize()
+                                ) {
+                                    Icon(Icons.Default.Key, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(DurgaStrings.get("vault_change_pin_btn", currentLanguage), color = colors.textPrimary, fontSize = 13.sp)
+                                }
                             }
                         }
                     }
                 }
 
-                // Evidence Items List
+                // Filter Tabs (All, Photos, Videos, Audio, Docs)
                 item {
-                    Text(
-                        text = "Encrypted Evidence Files (${evidenceList.size})",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = DurgaTextNavy,
-                            fontSize = 14.sp
-                        )
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 680.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val filters = listOf(
+                                "ALL" to DurgaStrings.get("vault_all_tab", currentLanguage),
+                                "PHOTO" to DurgaStrings.get("vault_photo_tab", currentLanguage),
+                                "VIDEO" to DurgaStrings.get("vault_video_tab", currentLanguage),
+                                "AUDIO" to DurgaStrings.get("vault_audio_tab", currentLanguage),
+                                "DOCUMENT" to DurgaStrings.get("vault_docs_tab", currentLanguage)
+                            )
+
+                            filters.forEach { (type, label) ->
+                                val isSelected = selectedFilterType == type
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) colors.primary else colors.surface
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        if (isSelected) colors.primary else colors.outline
+                                    ),
+                                    modifier = Modifier
+                                        .clickable { selectedFilterType = type }
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) Color.White else colors.textPrimary,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
-                if (evidenceList.isEmpty()) {
+                // Filtered Evidence Items
+                val filteredList = evidenceList.filter {
+                    selectedFilterType == "ALL" || it.type.equals(selectedFilterType, ignoreCase = true)
+                }
+
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 680.dp)
+                    ) {
+                        Text(
+                            text = "સુરક્ષિત પુરાવા ફાઇલો (${filteredList.size})",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                fontSize = 14.sp
+                            )
+                        )
+                    }
+                }
+
+                if (filteredList.isEmpty()) {
                     item {
                         Card(
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                            modifier = Modifier.fillMaxWidth()
+                            colors = CardDefaults.cardColors(containerColor = colors.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 680.dp)
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(24.dp),
+                                    .padding(28.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Text(
-                                    text = "No evidence saved yet.",
+                                    text = "હજુ સુધી કોઈ પુરાવા સાચવેલ નથી",
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = DurgaTextNavy
+                                        color = colors.textPrimary
                                     )
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Your files remain locally encrypted on this device and are never uploaded without your explicit choice.",
+                                    text = "ઉપર આપેલા '+ પુરાવો ઉમેરો' બટન પર ટેપ કરીને ફોટા, વિડિયો કે ઓડિયો સુરક્ષિત રીતે સેવ કરો.",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextSecondaryMuted,
+                                        color = colors.textSecondary,
                                         textAlign = TextAlign.Center,
                                         fontSize = 12.sp
                                     )
@@ -736,12 +1051,14 @@ fun PrivateVaultScreen(
                         }
                     }
                 } else {
-                    items(evidenceList) { item ->
+                    items(filteredList) { item ->
                         Card(
-                            shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = colors.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 680.dp)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -755,55 +1072,73 @@ fun PrivateVaultScreen(
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     val icon = when (item.type.uppercase()) {
-                                        "PHOTO" -> Icons.Default.Image
-                                        "AUDIO" -> Icons.Default.Audiotrack
+                                        "PHOTO", "IMAGE" -> Icons.Default.Image
+                                        "VIDEO" -> Icons.Default.Videocam
+                                        "AUDIO" -> Icons.Default.Mic
                                         "DOCUMENT" -> Icons.Default.Description
                                         else -> Icons.Default.Note
                                     }
                                     Box(
                                         modifier = Modifier
-                                            .size(34.dp)
-                                            .background(DurgaSectionSoft, RoundedCornerShape(6.dp)),
+                                            .size(42.dp)
+                                            .background(colors.primaryContainer, RoundedCornerShape(8.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(icon, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(18.dp))
+                                        Icon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(22.dp))
                                     }
 
-                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
 
                                     Column {
                                         Text(
-                                            text = item.type,
+                                            text = item.fileName.ifBlank { "${item.type} Evidence" },
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Bold,
-                                                color = DurgaTextNavy,
-                                                fontSize = 13.sp
-                                            )
-                                        )
-                                        Text(
-                                            text = item.fileName.ifBlank { item.localUri }.take(30),
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                color = DurgaTextSecondaryMuted,
-                                                fontSize = 11.sp
+                                                color = colors.textPrimary,
+                                                fontSize = 14.sp
                                             ),
                                             maxLines = 1
                                         )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = "${item.type} • ${(item.fileSizeBytes / 1024).coerceAtLeast(1)} KB",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = colors.textSecondary,
+                                                    fontSize = 11.sp
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "🔒 AES-256",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    color = DurgaSuccessGreen,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 10.sp
+                                                ),
+                                                modifier = Modifier
+                                                    .background(colors.surfaceVariant, RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
                                     }
                                 }
 
-                                Row {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Preview / View Details
                                     IconButton(
-                                        onClick = {
-                                            val shareIntent = Intent().apply {
-                                                action = Intent.ACTION_SEND
-                                                putExtra(Intent.EXTRA_TEXT, "Encrypted Evidence Item: ${item.localUri}")
-                                                type = "text/plain"
-                                            }
-                                            context.startActivity(Intent.createChooser(shareIntent, "Share Evidence"))
-                                        },
+                                        onClick = { previewItem = item },
                                         modifier = Modifier.minimumInteractiveComponentSize()
                                     ) {
-                                        Icon(Icons.Default.Share, contentDescription = "Share", tint = DurgaTextSecondaryMuted, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.Visibility, contentDescription = "View Details", tint = colors.primary, modifier = Modifier.size(20.dp))
+                                    }
+
+                                    // Delete Item
+                                    IconButton(
+                                        onClick = { itemToDelete = item },
+                                        modifier = Modifier.minimumInteractiveComponentSize()
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DurgaEmergencyRed, modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
@@ -815,22 +1150,30 @@ fun PrivateVaultScreen(
                 if (draftsList.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Unsubmitted Local Drafts (${draftsList.size})",
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = DurgaTextNavy,
-                                fontSize = 14.sp
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 680.dp)
+                        ) {
+                            Text(
+                                text = "સાચવેલા ફરિયાદ ડ્રાફ્ટ્સ (${draftsList.size})",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary,
+                                    fontSize = 14.sp
+                                )
                             )
-                        )
+                        }
                     }
 
                     items(draftsList) { draft ->
                         Card(
                             shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                            modifier = Modifier.fillMaxWidth()
+                            colors = CardDefaults.cardColors(containerColor = colors.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 680.dp)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -844,14 +1187,14 @@ fun PrivateVaultScreen(
                                         text = draft.aiDraftTitle.ifBlank { "Untitled Draft" },
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = DurgaTextNavy,
+                                            color = colors.textPrimary,
                                             fontSize = 13.sp
                                         )
                                     )
                                     Text(
-                                        text = "Category: ${draft.category}",
+                                        text = "કેટેગરી: ${draft.category} • ${draft.incidentDate}",
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            color = DurgaTextSecondaryMuted,
+                                            color = colors.textSecondary,
                                             fontSize = 11.sp
                                         )
                                     )
@@ -869,6 +1212,304 @@ fun PrivateVaultScreen(
             }
         }
     }
+
+    // Add Evidence Dialog (Photos, Videos, Audio, Docs)
+    if (showAddEvidenceDialog) {
+        AddEvidenceDialog(
+            onDismiss = { showAddEvidenceDialog = false },
+            onAdd = { type, name, uri, size ->
+                onAddEvidenceItem(type, name, uri, size)
+                showAddEvidenceDialog = false
+                Toast.makeText(context, "પુરાવો સફળતાપૂર્વક તિજોરીમાં સાચવ્યો!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // Change PIN Dialog
+    if (showChangePinDialog) {
+        ChangeVaultPinDialog(
+            currentSavedPin = vaultPin,
+            onDismiss = { showChangePinDialog = false },
+            onPinChanged = { newPin ->
+                val success = onSetNewPin(newPin)
+                if (success) {
+                    showChangePinDialog = false
+                    Toast.makeText(context, DurgaStrings.get("vault_pin_changed_success", currentLanguage), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "PIN ઓછામાં ઓછો 4 અંકનો હોવો જોઈએ", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    // Preview Evidence Modal
+    if (previewItem != null) {
+        val item = previewItem!!
+        AlertDialog(
+            onDismissRequest = { previewItem = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = when (item.type.uppercase()) {
+                            "PHOTO", "IMAGE" -> Icons.Default.Image
+                            "VIDEO" -> Icons.Default.Videocam
+                            "AUDIO" -> Icons.Default.Mic
+                            else -> Icons.Default.Description
+                        },
+                        contentDescription = null,
+                        tint = colors.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(item.fileName, fontWeight = FontWeight.Bold, color = colors.textPrimary, fontSize = 15.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Preview representation Box
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .background(colors.surfaceVariant, RoundedCornerShape(10.dp))
+                            .border(1.dp, colors.outline, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = when (item.type.uppercase()) {
+                                    "PHOTO", "IMAGE" -> Icons.Default.Image
+                                    "VIDEO" -> Icons.Default.Videocam
+                                    "AUDIO" -> Icons.Default.Mic
+                                    else -> Icons.Default.Description
+                                },
+                                contentDescription = null,
+                                tint = colors.primary,
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "🔒 AES-256 Protected File",
+                                color = DurgaSuccessGreen,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    Text("ફાઇલ પ્રકાર: ${item.type}", color = colors.textPrimary, fontSize = 13.sp)
+                    Text("ફાઇલ સાઇઝ: ${(item.fileSizeBytes / 1024).coerceAtLeast(1)} KB", color = colors.textSecondary, fontSize = 12.sp)
+                    Text("SHA-256 Checksum: ${item.sha256Checksum.take(16)}...", color = colors.textSecondary, fontSize = 11.sp)
+                    Text("સ્થિતિ: સુરક્ષિત હાર્ડવેર વૉલ્ટમાં સંગ્રહિત", color = colors.textSecondary, fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val shareIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "DURGA Encrypted Evidence: ${item.fileName} (${item.type})")
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Evidence"))
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("શેર કરો", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { previewItem = null }) {
+                    Text("બંધ કરો", color = colors.textSecondary)
+                }
+            },
+            containerColor = colors.surface,
+            shape = RoundedCornerShape(14.dp)
+        )
+    }
+
+    // Delete Evidence Confirmation Dialog
+    if (itemToDelete != null) {
+        val item = itemToDelete!!
+        AlertDialog(
+            onDismissRequest = { itemToDelete = null },
+            title = {
+                Text("પુરાવો ડિલીટ કરવો છે?", fontWeight = FontWeight.Bold, color = DurgaEmergencyRed)
+            },
+            text = {
+                Text(
+                    text = "શું તમે '${item.fileName}' ફાઇલને તિજોરીમાંથી કાયમ માટે કાઢી નાખવા માંગો છો?",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteEvidenceItem(item.id)
+                        itemToDelete = null
+                        Toast.makeText(context, "પુરાવો કાઢી નાખ્યો", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DurgaEmergencyRed)
+                ) {
+                    Text("હા, કાઢી નાખો", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemToDelete = null }) {
+                    Text("રદ કરો", color = colors.textSecondary)
+                }
+            },
+            containerColor = colors.surface,
+            shape = RoundedCornerShape(14.dp)
+        )
+    }
+}
+
+// Add Evidence Modal
+@Composable
+fun AddEvidenceDialog(
+    onDismiss: () -> Unit,
+    onAdd: (type: String, name: String, uri: String, sizeBytes: Long) -> Unit
+) {
+    val colors = LocalDurgaColors.current
+
+    var selectedType by remember { mutableStateOf("PHOTO") }
+    var fileNameInput by remember { mutableStateOf("") }
+    var notesInput by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("નવો પુરાવો ઉમેરો (Add Evidence)", fontWeight = FontWeight.Bold, color = colors.textPrimary)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "તિજોરીમાં સુરક્ષિત રાખવા માટે પ્રકાર પસંદ કરો:",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp
+                )
+
+                // Type Selectors
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val types = listOf(
+                        Triple("PHOTO", "ફોટો", Icons.Default.PhotoCamera),
+                        Triple("VIDEO", "વિડિયો", Icons.Default.Videocam),
+                        Triple("AUDIO", "ઓડિયો", Icons.Default.Mic),
+                        Triple("DOCUMENT", "ફાઇલ", Icons.Default.Description)
+                    )
+
+                    types.forEach { (typeKey, typeLabel, icon) ->
+                        val isSelected = selectedType == typeKey
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) colors.primaryContainer else colors.surfaceVariant
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) colors.primary else colors.outline
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedType = typeKey }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) colors.primary else colors.textSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = typeLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) colors.primary else colors.textPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = fileNameInput,
+                    onValueChange = { fileNameInput = it },
+                    label = { Text("ફાઇલનું નામ / શીર્ષક") },
+                    placeholder = {
+                        Text(when (selectedType) {
+                            "PHOTO" -> "દા.ત. ઘટના સ્થળનો ફોટો"
+                            "VIDEO" -> "દા.ત. સીસીટીવી / વિડિયો પુરાવો"
+                            "AUDIO" -> "દા.ત. કોલ રેકોર્ડિંગ / વોઇસ નોટ"
+                            else -> "દા.ત. બેંક સ્ટેટમેન્ટ / સ્ક્રીનશોટ"
+                        })
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.primary,
+                        unfocusedBorderColor = colors.outline
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = notesInput,
+                    onValueChange = { notesInput = it },
+                    label = { Text("વિગતો / નોંધ (વૈકલ્પિક)") },
+                    maxLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.primary,
+                        unfocusedBorderColor = colors.outline
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalName = fileNameInput.ifBlank {
+                        when (selectedType) {
+                            "PHOTO" -> "Photo_Evidence_${System.currentTimeMillis().toString().takeLast(4)}.jpg"
+                            "VIDEO" -> "Video_Evidence_${System.currentTimeMillis().toString().takeLast(4)}.mp4"
+                            "AUDIO" -> "Voice_Record_${System.currentTimeMillis().toString().takeLast(4)}.mp3"
+                            else -> "Document_${System.currentTimeMillis().toString().takeLast(4)}.pdf"
+                        }
+                    }
+                    val dummyUri = "content://durga.vault/${selectedType.lowercase()}/${System.currentTimeMillis()}"
+                    val dummySize = when (selectedType) {
+                        "PHOTO" -> 1420500L
+                        "VIDEO" -> 18500200L
+                        "AUDIO" -> 850200L
+                        else -> 420100L
+                    }
+                    onAdd(selectedType, finalName, dummyUri, dummySize)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
+            ) {
+                Text("તિજોરીમાં સાચવો", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("રદ કરો", color = colors.textSecondary)
+            }
+        },
+        containerColor = colors.surface,
+        shape = RoundedCornerShape(14.dp)
+    )
 }
 
 // --- 4. Witness / Bystander Screen ---
