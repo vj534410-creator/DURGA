@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
 import { AuditService } from '../services/auditService';
 
@@ -45,7 +46,7 @@ router.get('/officers', (_req: Request, res: Response): void => {
 
 // POST /admin/assign-officer - Assign case to designated police officer
 router.post('/assign-officer', (req: Request, res: Response): void => {
-  const { caseId, officerId, adminNotes } = req.body;
+  const { caseId, officerId, adminNotes, adminName } = req.body;
 
   const complaint = Array.from(db.complaints.values()).find(
     c => c.id === caseId || c.complaint_ref_no === caseId
@@ -56,15 +57,30 @@ router.post('/assign-officer', (req: Request, res: Response): void => {
     return;
   }
 
-  complaint.assigned_officer_id = officerId;
+  const officer = db.users.get(officerId) || Array.from(db.users.values()).find(u => u.badge_id === officerId);
+
+  complaint.assigned_officer_id = officer ? officer.id : officerId;
+  complaint.assigned_officer_name = officer ? `${officer.full_name} (${officer.badge_id})` : officerId;
   complaint.current_status = 'ASSIGNED';
   complaint.updated_at = new Date().toISOString();
+
+  // Add timeline entry
+  db.timeline.push({
+    id: uuidv4(),
+    case_id: complaint.id,
+    event_type: 'OFFICER_ASSIGNED',
+    title: 'Case Assigned to Officer',
+    description: `Assigned to ${complaint.assigned_officer_name}. Admin remarks: ${adminNotes || 'None'}`,
+    actor_name: adminName || 'Admin Desk',
+    actor_role: 'ADMIN',
+    timestamp: complaint.updated_at
+  });
 
   AuditService.record(
     'CASE_ASSIGNED_BY_ADMIN',
     'COMPLAINT',
     complaint.id,
-    { officerId, notes: adminNotes }
+    { officerId, officerName: complaint.assigned_officer_name, notes: adminNotes }
   );
 
   res.json({ success: true, message: 'Case assigned successfully', case: complaint });

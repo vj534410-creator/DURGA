@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Note
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Share
@@ -110,6 +111,7 @@ fun MyCasesScreen(
     casesList: List<CaseEntity>,
     onSelectCase: (String) -> Unit,
     onBack: () -> Unit,
+    onNavigateToNotifications: () -> Unit = {},
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
     modifier: Modifier = Modifier
@@ -132,7 +134,8 @@ fun MyCasesScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenNotifications = onNavigateToNotifications
             )
         },
         bottomBar = {
@@ -154,6 +157,67 @@ fun MyCasesScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaPrimaryNavy),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToNotifications() }
+                        .testTag("my_cases_notifications_banner")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(DurgaSectionSoft, RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    tint = DurgaPrimaryNavy,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "પોલીસ કાર્યવાહી & કેસ સૂચનાઓ",
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = DurgaTextNavy
+                                    )
+                                )
+                                Text(
+                                    text = "ફરિયાદ પર થયેલ કામ અને પોલીસ પગલાંની લાઈવ વિગતો",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = DurgaTextSecondaryMuted,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "જુઓ →",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = DurgaBlueAction
+                            )
+                        )
+                    }
+                }
+            }
+
             item {
                 OutlinedTextField(
                     value = searchQuery,
@@ -313,6 +377,7 @@ fun CaseDetailsScreen(
     caseEntity: CaseEntity?,
     caseUpdates: List<CaseUpdateEntity>,
     onBack: () -> Unit,
+    onNavigateToNotifications: () -> Unit = {},
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
     modifier: Modifier = Modifier
@@ -327,7 +392,8 @@ fun CaseDetailsScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenNotifications = onNavigateToNotifications
             )
         },
         containerColor = DurgaBackgroundLight,
@@ -375,6 +441,51 @@ fun CaseDetailsScreen(
                             StatusStepItem("Received", isDone = true, isCurrent = true)
                             StatusStepItem("Action", isDone = false, isCurrent = false)
                             StatusStepItem("Closed", isDone = false, isCurrent = false)
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Dedicated Case Notifications & Police Action Link Card
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = DurgaSectionSoft),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DurgaPrimaryNavy.copy(alpha = 0.4f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToNotifications() }
+                                .testTag("case_details_open_notifications")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Notifications,
+                                        contentDescription = null,
+                                        tint = DurgaPrimaryNavy,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "પોલીસ કાર્યવાહી & સ્ટેટસ સૂચનાઓ જુઓ",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = DurgaTextNavy
+                                        )
+                                    )
+                                }
+                                Text(
+                                    text = "સૂચનાઓ →",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = DurgaBlueAction,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
                         }
                     }
                 }

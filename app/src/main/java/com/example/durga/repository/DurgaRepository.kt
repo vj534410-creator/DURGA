@@ -6,6 +6,7 @@ import com.example.durga.database.SecurityVault
 import com.example.durga.model.AiGeneratedDraft
 import com.example.durga.model.AuditAccessLogEntity
 import com.example.durga.model.CaseEntity
+import com.example.durga.model.CaseNotificationEntity
 import com.example.durga.model.CaseStatus
 import com.example.durga.model.CaseUpdateEntity
 import com.example.durga.model.DraftComplaintEntity
@@ -15,6 +16,7 @@ import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
 import com.example.durga.network.DurgaBackendClient
 import com.example.durga.network.GeminiComplaintWriter
+import com.example.durga.notification.DurgaNotificationHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -36,13 +38,15 @@ class DurgaRepository(private val context: Context) {
     private val caseUpdateDao = db.caseUpdateDao()
     private val safetyCardDao = db.safetyCardDao()
     private val auditDao = db.auditDao()
+    private val notificationDao = db.notificationDao()
 
     init {
-        // Seed official services if empty
+        // Seed official services & sample notifications if empty
         CoroutineScope(Dispatchers.IO).launch {
             if (serviceDao.getServicesCount() == 0) {
                 serviceDao.insertServices(DurgaBackendClient.getVerifiedIndianEmergencyServices())
             }
+            seedSampleNotificationsIfEmpty()
         }
     }
 
@@ -112,6 +116,25 @@ class DurgaRepository(private val context: Context) {
             )
         )
 
+        // Post initial notification for newly filed complaint
+        val initialNotification = CaseNotificationEntity(
+            caseId = newCaseId,
+            title = caseEntity.title,
+            category = caseEntity.category,
+            progressPercent = 20,
+            stageTitle = "ફરિયાદ દાખલ થઈ (Complaint Lodged)",
+            isActionTaken = false,
+            actionStatusText = "તપાસ પ્રાથમિક તબક્કે (Desk Review Started)",
+            actionDetails = "તમારી ફરિયાદ DURGA કેન્દ્રીય સિસ્ટમ પર સત્તાવાર રીતે નોંધવામાં આવી છે. કેસ આઈડી $newCaseId ફાળવવામાં આવ્યો છે. સંબંધિત મહિલા સહાયતા ડેસ્કને જાણ કરાઈ છે.",
+            officerName = "Duty Desk Officer",
+            policeStation = "Central Women Safety & Cyber Cell",
+            fullSummary = "Initial filing confirmed at 20% progress.",
+            isRead = false,
+            timestamp = System.currentTimeMillis()
+        )
+        notificationDao.insertNotification(initialNotification)
+        DurgaNotificationHelper.postCaseProgressNotification(context, initialNotification)
+
         // Submit to backend
         val serverResult = DurgaBackendClient.submitCaseToBackend(caseEntity, updatedEvidence.size)
         if (serverResult.isSuccess) {
@@ -135,6 +158,34 @@ class DurgaRepository(private val context: Context) {
                     updatedBy = updatedBy
                 )
             )
+
+            val existingCase = caseDao.getCaseById(caseId)
+            val (progress, isAction, actionStatus) = when (newStatus) {
+                CaseStatus.RECEIVED.name, CaseStatus.RECEIVED.displayName -> Triple(35, false, "ડેસ્ક દ્વારા સ્વીકૃત (Received)")
+                CaseStatus.ASSIGNED.name, CaseStatus.ASSIGNED.displayName -> Triple(55, false, "તપાસ અધિકારી નિયુક્ત (Officer Assigned)")
+                CaseStatus.UPDATE_AVAILABLE.name, CaseStatus.UPDATE_AVAILABLE.displayName -> Triple(75, true, "તપાસ પ્રગતિમાં (Investigation Active)")
+                CaseStatus.ACTION_RECORDED.name, CaseStatus.ACTION_RECORDED.displayName -> Triple(90, true, "પોલીસ કાર્યવાહી સંપન્ન (Police Action Taken)")
+                CaseStatus.CLOSED.name, CaseStatus.CLOSED.displayName -> Triple(100, true, "કેસ પૂર્ણ (Case Resolved)")
+                else -> Triple(60, false, "અપડેટ ઉપલબ્ધ (Update Available)")
+            }
+
+            val notification = CaseNotificationEntity(
+                caseId = caseId,
+                title = existingCase?.title ?: "Case Update: $caseId",
+                category = existingCase?.category ?: "Safety",
+                progressPercent = progress,
+                stageTitle = newStatus,
+                isActionTaken = isAction,
+                actionStatusText = actionStatus,
+                actionDetails = message,
+                officerName = updatedBy,
+                policeStation = "Women Safety & Cyber Cell",
+                fullSummary = message,
+                isRead = false,
+                timestamp = System.currentTimeMillis()
+            )
+            notificationDao.insertNotification(notification)
+            DurgaNotificationHelper.postCaseProgressNotification(context, notification)
         }
     }
 
@@ -298,5 +349,210 @@ class DurgaRepository(private val context: Context) {
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         val dist = r * c
         return Math.round(dist * 10.0) / 10.0
+    }
+
+    // --- Case Notifications & Police Actions Tracking ---
+    val allNotifications: Flow<List<CaseNotificationEntity>> = notificationDao.getAllNotifications()
+    val unreadNotificationsCount: Flow<Int> = notificationDao.getUnreadCount()
+
+    fun getNotificationsForCase(caseId: String): Flow<List<CaseNotificationEntity>> = notificationDao.getNotificationsForCase(caseId)
+
+    suspend fun insertNotification(notification: CaseNotificationEntity) = withContext(Dispatchers.IO) {
+        notificationDao.insertNotification(notification)
+        DurgaNotificationHelper.postCaseProgressNotification(context, notification)
+    }
+
+    suspend fun markNotificationAsRead(id: String) = withContext(Dispatchers.IO) {
+        notificationDao.markAsRead(id)
+    }
+
+    suspend fun markAllNotificationsAsRead() = withContext(Dispatchers.IO) {
+        notificationDao.markAllAsRead()
+    }
+
+    suspend fun deleteNotification(id: String) = withContext(Dispatchers.IO) {
+        notificationDao.deleteNotification(id)
+    }
+
+    suspend fun deleteAllNotifications() = withContext(Dispatchers.IO) {
+        notificationDao.deleteAllNotifications()
+    }
+
+    private data class ProgressionStep(
+        val progress: Int,
+        val stageTitle: String,
+        val isAction: Boolean,
+        val actionStatus: String,
+        val actionDetails: String,
+        val officer: String,
+        val station: String
+    )
+
+    suspend fun simulatePoliceProgression(targetCaseId: String? = null): CaseNotificationEntity = withContext(Dispatchers.IO) {
+        val cases = caseDao.getAllCases().first()
+        val targetCase = if (!targetCaseId.isNullOrBlank()) {
+            caseDao.getCaseById(targetCaseId) ?: cases.firstOrNull()
+        } else {
+            cases.firstOrNull()
+        }
+
+        val caseId = targetCase?.caseId ?: run {
+            val newId = CaseEntity.generateCaseId()
+            val sample = CaseEntity(
+                caseId = newId,
+                category = "CYBER_ONLINE",
+                title = "ઓનલાઇન હેરાનગતિ અને ધમકી રિપોર્ટ",
+                originalDescription = "સોશિયલ મીડિયા પર અજાણ્યા નંબરથી વારંવાર કોલ અને મેસેજ આવી રહ્યા છે.",
+                structuredDescription = "ફરિયાદી મહિલાને અજાણ્યા સ્ત્રોત દ્વારા સતત અસભ્ય મેસેજ અને ધમકી મળવા બાબતે.",
+                originalLanguage = "Gujarati",
+                incidentDate = "25/09/2026",
+                incidentTime = "10:30 AM",
+                incidentLocation = "અમદાવાદ",
+                status = CaseStatus.REPORT_SUBMITTED.name
+            )
+            caseDao.insertCase(sample)
+            newId
+        }
+
+        val pastNotifications = notificationDao.getNotificationsForCase(caseId).first()
+        val maxProgress = pastNotifications.maxOfOrNull { it.progressPercent } ?: 20
+
+        val step = when {
+            maxProgress < 30 -> ProgressionStep(
+                progress = 45,
+                stageTitle = "તપાસ અધિકારી સોંપાયા (Officer Assigned & Preliminary Verification)",
+                isAction = false,
+                actionStatus = "તપાસ ચાલુ (Under Investigation)",
+                actionDetails = "પી.આઈ. એમ. કે. સોલંકી અને મહિલા સહાયક સ્ટાફને કેસ સોંપવામાં આવ્યો. GD એન્ટ્રી નં. 418/2026 દાખલ કરી પ્રાથમિક ચકાસણી શરૂ થઈ.",
+                officer = "PI M.K. Solanki (Cyber Unit)",
+                station = "Women Safety & Cyber Crime Police Station"
+            )
+            maxProgress < 60 -> ProgressionStep(
+                progress = 70,
+                stageTitle = "સ્થળ મુલાકાત & ડિજિટલ પુરાવા ચકાસણી (Site Inspection & Evidence Verification)",
+                isAction = false,
+                actionStatus = "પુરાવા તપાસ પ્રગતિમાં (Evidence Verified)",
+                actionDetails = "તપાસ ટીમે ઘટના સ્થળની મુલાકાત લીધી. સીસીટીવી ફૂટેજ, કોલ રેકોર્ડ્સ અને સ્ક્રીનશોટ્સ ડિજિટલ ફોરેન્સિક લેબમાં મોકલવામાં આવ્યા.",
+                officer = "PSI V.P. Rathod & Team",
+                station = "Special Women Protection Squad"
+            )
+            maxProgress < 85 -> ProgressionStep(
+                progress = 90,
+                stageTitle = "પોલીસ કાર્યવાહી સંપન્ન (Police Action Taken & Safeguards Enacted)",
+                isAction = true,
+                actionStatus = "પોલીસ કાર્યવાહી લેવાઈ (ACTION TAKEN)",
+                actionDetails = "આરોપીની ઓળખ કરી કલમ 354D/79 BNS હેઠળ કાનૂની નોટિસ બજાવી. ફરિયાદકર્તાના વિસ્તારમાં PCR વાનનું પેટ્રોલીંગ વધારી દેવામાં આવ્યું છે.",
+                officer = "Senior Inspector S.A. Jadeja",
+                station = "City Police Command & Control"
+            )
+            else -> ProgressionStep(
+                progress = 100,
+                stageTitle = "કેસ પૂર્ણ અને એક્શન રિપોર્ટ સુપરત (Case Resolved & Final Action Report)",
+                isAction = true,
+                actionStatus = "સંપૂર્ણ કાર્યવાહી પૂર્ણ (Case Resolved)",
+                actionDetails = "પોલીસ દ્વારા તમામ કાનૂની પગલાં સફળતાપૂર્વક લેવાઈ ગયા છે. આરોપી વિરુદ્ધ ચાર્જશીટ/બાંહેધરી લેવાઈ છે. ફરિયાદકર્તાની સંપૂર્ણ સુરક્ષા સુનિશ્ચિત કરી કેસ સંપન્ન જાહેર કરાયો છે.",
+                officer = "DCP Women & Child Protection",
+                station = "State Police Headquarter"
+            )
+        }
+
+        val newNotification = CaseNotificationEntity(
+            caseId = caseId,
+            title = targetCase?.title ?: "કેસ તપાસ અપડેટ: $caseId",
+            category = targetCase?.category ?: "CYBER_ONLINE",
+            progressPercent = step.progress,
+            stageTitle = step.stageTitle,
+            isActionTaken = step.isAction,
+            actionStatusText = step.actionStatus,
+            actionDetails = step.actionDetails,
+            officerName = step.officer,
+            policeStation = step.station,
+            fullSummary = step.actionDetails,
+            isRead = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        notificationDao.insertNotification(newNotification)
+        caseDao.updateCaseStatus(caseId, if (step.isAction) CaseStatus.ACTION_RECORDED.name else CaseStatus.UPDATE_AVAILABLE.name)
+        caseUpdateDao.insertUpdate(
+            CaseUpdateEntity(
+                caseId = caseId,
+                status = step.stageTitle,
+                message = step.actionDetails,
+                updatedBy = step.officer
+            )
+        )
+        DurgaNotificationHelper.postCaseProgressNotification(context, newNotification)
+        newNotification
+    }
+
+    suspend fun seedSampleNotificationsIfEmpty() = withContext(Dispatchers.IO) {
+        val existing = notificationDao.getAllNotifications().first()
+        if (existing.isEmpty()) {
+            val sampleCaseId = "DURGA-2026-784291"
+            val sampleNotifications = listOf(
+                CaseNotificationEntity(
+                    caseId = sampleCaseId,
+                    title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
+                    category = "CYBER_ONLINE",
+                    progressPercent = 90,
+                    stageTitle = "પોલીસ કાર્યવાહી સંપન્ન (Police Action Taken)",
+                    isActionTaken = true,
+                    actionStatusText = "કાર્યવાહી લેવાઈ (Action Taken)",
+                    actionDetails = "આરોપીને પોલીસ સ્ટેશન બોલાવી ભારતીય ન્યાય સંહિતાની સંબંધિત કલમો હેઠળ આકરી ચેતવણી અને 41A CrPC નોટિસ પાઠવવામાં આવી. ફરિયાદકર્તાના વિસ્તારમાં નિયમિત રાત્રિ પેટ્રોલીંગ ગોઠવવામાં આવ્યું છે.",
+                    officerName = "PI એમ.કે. સોલંકી (તપાસ અધિકારી)",
+                    policeStation = "મહિલા સાયબર ક્રાઈમ સેલ, પશ્ચિમ ડિવિઝન",
+                    fullSummary = "Police action completed with notice issued and security patrolling assigned.",
+                    isRead = false,
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 35)
+                ),
+                CaseNotificationEntity(
+                    caseId = sampleCaseId,
+                    title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
+                    category = "CYBER_ONLINE",
+                    progressPercent = 70,
+                    stageTitle = "ડિજિટલ પુરાવા ચકાસણી (Digital Evidence Verified)",
+                    isActionTaken = false,
+                    actionStatusText = "પુરાવા ચકાસાયા (Evidence Verified)",
+                    actionDetails = "સાયબર એક્સપર્ટ દ્વારા શંકાસ્પદ IP સરનામું અને મોબાઈલ નંબરની CDR/IPDR વિગતો ચકાસવામાં આવી છે અને શંકાસ્પદ વ્યક્તિનું લોકેશન ટ્રેક થઈ ગયું છે.",
+                    officerName = "PSI વી.પી. રાઠોડ",
+                    policeStation = "સાયબર સેલ ટેકનિકલ શાખા",
+                    fullSummary = "IP and CDR evidence analyzed successfully.",
+                    isRead = true,
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 120)
+                ),
+                CaseNotificationEntity(
+                    caseId = sampleCaseId,
+                    title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
+                    category = "CYBER_ONLINE",
+                    progressPercent = 45,
+                    stageTitle = "તપાસ અધિકારી સોંપાયા (Officer Assigned)",
+                    isActionTaken = false,
+                    actionStatusText = "તપાસ ચાલુ (Officer Assigned)",
+                    actionDetails = "તમારી ફરિયાદ સાયબર ક્રાઈમ બ્રાંચ અને મહિલા સુરક્ષા સેલમાં રજીસ્ટર થઈ. PI સોલંકીને તપાસ સોંપાઈ.",
+                    officerName = "ડ્યુટી ઈન્સ્પેક્ટર",
+                    policeStation = "કેન્દ્રીય મહિલા સુરક્ષા કમાન્ડ",
+                    fullSummary = "Assigned to investigating officer.",
+                    isRead = true,
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 300)
+                ),
+                CaseNotificationEntity(
+                    caseId = sampleCaseId,
+                    title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
+                    category = "CYBER_ONLINE",
+                    progressPercent = 20,
+                    stageTitle = "ફરિયાદ દાખલ થઈ (Complaint Lodged)",
+                    isActionTaken = false,
+                    actionStatusText = "ડેસ્ક સમીક્ષા (Desk Review)",
+                    actionDetails = "DURGA સિસ્ટમ પર ફરિયાદ સફળતાપૂર્વક નોંધાઈ. ગોપનીય કેસ આઈડી DURGA-2026-784291 ફાળવાયો.",
+                    officerName = "સિસ્ટમ એડમિન",
+                    policeStation = "DURGA કંટ્રોલ રૂમ",
+                    fullSummary = "Initial filing confirmed.",
+                    isRead = true,
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 600)
+                )
+            )
+            notificationDao.insertNotifications(sampleNotifications)
+        }
     }
 }

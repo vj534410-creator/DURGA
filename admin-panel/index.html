@@ -3,28 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DURGA — Central Administration & Oversight Panel</title>
+  <title>DURGA — Central Administration & Police Operations Portal</title>
   <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Sidebar -->
+
+  <!-- ==========================================
+       SECTION 1: ROLE-BASED LOGIN SCREEN
+       ========================================== -->
+  <div id="login-view" class="login-container" style="display: flex;">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-badge">🛡️ GOVERNMENT OF GUJARAT & INDIA STATUTORY COMPLIANT</div>
+        <h2><span>DURGA</span> Safety Command Portal</h2>
+        <p>Digital Unified Response & Guidance for All — Law Enforcement & Nodal Administration Desk</p>
+      </div>
+
+      <div class="login-tabs">
+        <button id="tab-btn-admin" class="login-tab-btn active" onclick="setLoginRole('ADMIN')">
+          🛡️ Central Administrator
+        </button>
+        <button id="tab-btn-officer" class="login-tab-btn" onclick="setLoginRole('OFFICER')">
+          👮 Police / Nodal Officer
+        </button>
+      </div>
+
+      <div class="login-body">
+        <div id="demo-credentials" class="demo-credentials-box">
+          <div class="demo-title">
+            <span id="demo-role-label">🔑 Admin Credentials</span>
+            <button class="fill-btn" onclick="autoFillDemoCredentials()">Use Credentials</button>
+          </div>
+          <div id="demo-text">Email: <code>admin@durga.gov.in</code> &bull; Password: <code>durgaAdmin2026!</code></div>
+        </div>
+
+        <div id="login-error-alert" class="login-alert danger"></div>
+
+        <form id="portal-login-form" onsubmit="handlePortalLogin(event)">
+          <div class="form-field" id="field-identity">
+            <label id="identity-label" for="login-identity">Official Administrator Email:</label>
+            <input type="text" id="login-identity" placeholder="e.g. admin@durga.gov.in" required autocomplete="username">
+          </div>
+
+          <div class="form-field">
+            <label for="login-password">Secret Password / Key:</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="login-password" placeholder="••••••••••••" required autocomplete="current-password">
+              <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility()">👁️</button>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-login" class="btn-login-submit">
+            <span id="login-btn-spinner" style="display: none;">⏳</span>
+            <span id="login-btn-text">Authenticate & Enter Portal</span>
+          </button>
+        </form>
+
+        <div class="login-footer-notes">
+          🔒 Secure 256-bit TLS Gateway &bull; Statutory IT Act 2000 Audit Logging Active &bull; Unauthorized access is prohibited by law.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       SECTION 2: MAIN ADMIN & POLICE DASHBOARD
+       ========================================== -->
+  <div id="dashboard-view" class="app-layout" style="display: none;">
+    <!-- Left Navigation Sidebar -->
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-badge">🛡️</div>
         <div>
-          <h2>DURGA ADMIN</h2>
-          <span>Central Safety Oversight</span>
+          <h2>DURGA PORTAL</h2>
+          <span>Central Operations & Police Desk</span>
         </div>
       </div>
 
       <nav class="nav-links">
         <button class="nav-item active" onclick="switchTab('dashboard')">
-          <span class="icon">📊</span> Overview & Metrics
+          <span class="icon">📊</span> Executive Dashboard
         </button>
         <button class="nav-item" onclick="switchTab('cases')">
-          <span class="icon">📁</span> All Cases & Complaints
+          <span class="icon">📁</span> All Cases & Triage
         </button>
         <button class="nav-item" onclick="switchTab('officers')">
           <span class="icon">👮</span> Officers & Personnel
@@ -35,95 +97,137 @@
         <button class="nav-item" onclick="switchTab('helplines')">
           <span class="icon">📞</span> Verified Helplines
         </button>
+        <a href="/officer" target="_blank" class="nav-item" style="text-decoration: none;">
+          <span class="icon">↗️</span> Launch Field Officer View
+        </a>
       </nav>
 
       <div class="sidebar-footer">
         <div class="user-chip">
-          <div class="avatar">AD</div>
-          <div>
-            <strong>Admin Nodal Desk</strong>
-            <small>admin@durga.gov.in</small>
+          <div class="avatar" id="sidebar-user-avatar">AD</div>
+          <div class="user-details">
+            <strong id="sidebar-user-name">Central Admin</strong>
+            <small id="sidebar-user-role">Administrator Desk</small>
           </div>
+          <button class="btn-logout" title="Log Out of Portal" onclick="handlePortalLogout()">Exit</button>
         </div>
       </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main Workspace -->
     <main class="main-content">
+      <!-- Top Header -->
       <header class="top-header">
         <div class="header-left">
           <h1 id="page-title">Executive Dashboard</h1>
-          <p class="subtitle" id="page-subtitle">Real-time emergency reports, case progression, and statutory compliance.</p>
+          <p class="subtitle" id="page-subtitle">Real-time incident reports, case progression, and statutory compliance.</p>
         </div>
         <div class="header-right">
-          <span class="system-badge online">● System Operational</span>
-          <button class="btn btn-secondary" onclick="refreshData()">↻ Refresh Data</button>
+          <!-- Fast QR / Case ID Lookup Bar -->
+          <div class="quick-lookup-box">
+            <span>🔍</span>
+            <input type="text" id="quick-case-input" placeholder="Enter Case ID / QR Code..." onkeydown="if(event.key==='Enter') quickLookupCase()">
+            <button onclick="quickLookupCase()">Verify</button>
+          </div>
+
+          <span class="system-badge online" id="system-health-badge">● API Online</span>
+          <button class="btn btn-secondary" onclick="refreshData()">↻ Refresh</button>
         </div>
       </header>
 
-      <!-- TAB 1: DASHBOARD -->
+      <!-- TAB 1: EXECUTIVE DASHBOARD -->
       <section id="tab-dashboard" class="tab-pane active">
         <div class="metrics-grid">
           <div class="metric-card">
             <span class="metric-title">TOTAL REGISTERED CASES</span>
-            <div class="metric-value" id="kpi-total">2</div>
+            <div class="metric-value" id="kpi-total">0</div>
             <div class="metric-trend text-neutral">Central Database Vault</div>
           </div>
           <div class="metric-card alert">
-            <span class="metric-title">PENDING TRIAGE / REVIEW</span>
-            <div class="metric-value" id="kpi-pending">1</div>
-            <div class="metric-trend text-warn">Requires Officer Assignment</div>
+            <span class="metric-title">NEW & PENDING TRIAGE</span>
+            <div class="metric-value" id="kpi-pending">0</div>
+            <div class="metric-trend text-danger">Requires Officer Assignment</div>
+          </div>
+          <div class="metric-card warn">
+            <span class="metric-title">ASSIGNED / UNDER REVIEW</span>
+            <div class="metric-value" id="kpi-assigned">0</div>
+            <div class="metric-trend text-warn">Action In Progress</div>
           </div>
           <div class="metric-card highlight">
-            <span class="metric-title">UNDER INVESTIGATION</span>
-            <div class="metric-value" id="kpi-investigating">1</div>
-            <div class="metric-trend text-info">Active Police Dispatches</div>
+            <span class="metric-title">ACTIVE INVESTIGATIONS</span>
+            <div class="metric-value" id="kpi-investigating">0</div>
+            <div class="metric-trend text-info">Police Dispatches Active</div>
           </div>
           <div class="metric-card success">
+            <span class="metric-title">RESOLVED & CITIZEN SAFE</span>
+            <div class="metric-value" id="kpi-resolved">0</div>
+            <div class="metric-trend text-success">Cases Successfully Closed</div>
+          </div>
+          <div class="metric-card">
             <span class="metric-title">STATUTORY AUDIT EVENTS</span>
-            <div class="metric-value" id="kpi-audit">12</div>
-            <div class="metric-trend text-success">100% Immutable Logged</div>
+            <div class="metric-value" id="kpi-audit">0</div>
+            <div class="metric-trend text-neutral">100% Immutable SHA-256</div>
           </div>
         </div>
 
-        <div class="content-row">
-          <div class="card recent-cases-card">
-            <div class="card-header">
-              <h3>Recent Complaints & Incidents</h3>
-              <button class="btn btn-sm btn-outline" onclick="switchTab('cases')">View All</button>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Ref ID</th>
-                    <th>Category</th>
-                    <th>Incident Title</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody id="dashboard-recent-cases">
-                  <!-- Dynamic content -->
-                </tbody>
-              </table>
-            </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>Recent Citizen Requests & Emergency Incidents</h3>
+            <button class="btn btn-sm btn-outline" onclick="switchTab('cases')">View All Cases &rarr;</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Case ID / Ref</th>
+                  <th>Category</th>
+                  <th>Incident Title</th>
+                  <th>Location</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Assigned Officer</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-recent-cases">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
 
-      <!-- TAB 2: CASES -->
+      <!-- TAB 2: ALL CASES & COMPLAINTS -->
       <section id="tab-cases" class="tab-pane">
         <div class="card">
-          <div class="card-header space-between">
-            <div class="filter-group">
-              <input type="text" id="case-search" placeholder="Search by Case ID or Location..." oninput="filterCases()">
-              <select id="case-status-filter" onchange="filterCases()">
+          <div class="card-header">
+            <h3>Cases Repository & Triage Vault</h3>
+            <div class="filter-bar">
+              <input type="text" id="case-search" class="filter-input" placeholder="Search by Ref ID, Title, or City..." oninput="filterCases()">
+              <select id="case-status-filter" class="filter-select" onchange="filterCases()">
                 <option value="ALL">All Statuses</option>
-                <option value="SUBMITTED_TO_DURGA">Pending Review</option>
+                <option value="REPORT_SUBMITTED">Report Submitted / New</option>
+                <option value="UNDER_REVIEW">Under Review</option>
+                <option value="ASSIGNED">Assigned</option>
                 <option value="UNDER_INVESTIGATION">Under Investigation</option>
+                <option value="ACTION_TAKEN">Action Taken</option>
                 <option value="RESOLVED">Resolved</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+              <select id="case-priority-filter" class="filter-select" onchange="filterCases()">
+                <option value="ALL">All Priorities</option>
+                <option value="EMERGENCY">Emergency</option>
+                <option value="URGENT">Urgent</option>
+                <option value="HIGH">High</option>
+                <option value="NORMAL">Normal</option>
+              </select>
+              <select id="case-category-filter" class="filter-select" onchange="filterCases()">
+                <option value="ALL">All Categories</option>
+                <option value="HOME_DOMESTIC">Domestic Violence</option>
+                <option value="CYBER_ONLINE">Cyber Crime / Online</option>
+                <option value="PUBLIC_TRANSIT">Public Transit / Street</option>
+                <option value="WORKPLACE">Workplace Harassment</option>
+                <option value="GENERAL_SAFETY">General Safety</option>
               </select>
             </div>
           </div>
@@ -136,6 +240,7 @@
                   <th>Category</th>
                   <th>Title & Description</th>
                   <th>Location</th>
+                  <th>Priority</th>
                   <th>Evidence</th>
                   <th>Status</th>
                   <th>Assigned Officer</th>
@@ -143,18 +248,19 @@
                 </tr>
               </thead>
               <tbody id="full-cases-list">
-                <!-- Dynamic content -->
+                <!-- Dynamically loaded -->
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- TAB 3: OFFICERS -->
+      <!-- TAB 3: OFFICERS ROSTER -->
       <section id="tab-officers" class="tab-pane">
         <div class="card">
           <div class="card-header">
-            <h3>Registered Law Enforcement & Nodal Officers</h3>
+            <h3>Authorized Law Enforcement & Police Nodal Officers</h3>
+            <button class="btn btn-primary btn-sm" onclick="openNewOfficerModal()">+ Register Officer</button>
           </div>
           <div class="table-responsive">
             <table class="data-table">
@@ -163,23 +269,25 @@
                   <th>Badge ID</th>
                   <th>Officer Name</th>
                   <th>Official Email</th>
-                  <th>Role</th>
+                  <th>Assigned Role</th>
+                  <th>Station / Jurisdiction</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody id="officers-list">
-                <!-- Dynamic content -->
+                <!-- Dynamically loaded -->
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- TAB 4: AUDIT LOGS -->
+      <!-- TAB 4: STATUTORY AUDIT TRAIL -->
       <section id="tab-audit" class="tab-pane">
         <div class="card">
           <div class="card-header">
-            <h3>Statutory & Forensic Audit Trail (Immutable)</h3>
+            <h3>Statutory & Forensic Audit Trail (Immutable SHA-256)</h3>
+            <span class="badge-tag highlight">Section 65B Indian Evidence Act Compliant</span>
           </div>
           <div class="table-responsive">
             <table class="data-table">
@@ -187,34 +295,36 @@
                 <tr>
                   <th>Timestamp</th>
                   <th>Event Type</th>
-                  <th>Entity</th>
-                  <th>Officer / User</th>
+                  <th>Entity Type</th>
+                  <th>Performed By</th>
+                  <th>Badge / Role</th>
                   <th>IP Address</th>
                   <th>Audit Payload</th>
                 </tr>
               </thead>
               <tbody id="audit-logs-list">
-                <!-- Dynamic content -->
+                <!-- Dynamically loaded -->
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- TAB 5: HELPLINES -->
+      <!-- TAB 5: VERIFIED HELPLINES -->
       <section id="tab-helplines" class="tab-pane">
         <div class="card">
           <div class="card-header">
-            <h3>Verified Emergency Directories & Helplines (India)</h3>
+            <h3>Verified National & State Emergency Services (India)</h3>
+            <span class="badge-tag alert">24x7 Statutory Toll-Free Numbers</span>
           </div>
           <div class="table-responsive">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Service</th>
-                  <th>Number</th>
+                  <th>Emergency Service</th>
+                  <th>Helpline Number</th>
                   <th>Jurisdiction</th>
-                  <th>Category</th>
+                  <th>Primary Focus</th>
                   <th>Official Portal</th>
                 </tr>
               </thead>
@@ -222,37 +332,65 @@
                 <tr>
                   <td><strong>National Emergency Response Support System (ERSS)</strong></td>
                   <td><span class="badge-tag alert">112</span></td>
-                  <td>National (All India)</td>
-                  <td>Police / Fire / Medical</td>
-                  <td><a href="https://112.gov.in" target="_blank">112.gov.in</a></td>
+                  <td>All India (National)</td>
+                  <td>Single Emergency Response (Police, Fire, Ambulance)</td>
+                  <td><a href="https://112.gov.in" target="_blank" rel="noopener">112.gov.in</a></td>
                 </tr>
                 <tr>
                   <td><strong>Women in Distress Emergency Helpline</strong></td>
                   <td><span class="badge-tag highlight">1091</span></td>
                   <td>National (NCW)</td>
-                  <td>Women Protection</td>
-                  <td><a href="https://ncw.nic.in" target="_blank">ncw.nic.in</a></td>
+                  <td>Immediate Police Intervention for Women in Distress</td>
+                  <td><a href="https://ncw.nic.in" target="_blank" rel="noopener">ncw.nic.in</a></td>
                 </tr>
                 <tr>
-                  <td><strong>Abhayam / Women Domestic Abuse Helpline</strong></td>
+                  <td><strong>Abhayam / Women Domestic Violence Helpline</strong></td>
                   <td><span class="badge-tag highlight">181</span></td>
-                  <td>Gujarat / State</td>
-                  <td>Women & Child</td>
-                  <td><a href="https://wcd.nic.in" target="_blank">wcd.nic.in</a></td>
+                  <td>Gujarat / State Level</td>
+                  <td>24x7 Domestic Violence Rescue, Counseling & Shelter</td>
+                  <td><a href="https://wcd.nic.in" target="_blank" rel="noopener">wcd.nic.in</a></td>
                 </tr>
                 <tr>
-                  <td><strong>CHILDLINE India</strong></td>
+                  <td><strong>CHILDLINE India (Child Helpline)</strong></td>
                   <td><span class="badge-tag">1098</span></td>
-                  <td>National</td>
-                  <td>Child Welfare</td>
-                  <td><a href="https://childlineindia.org" target="_blank">childlineindia.org</a></td>
+                  <td>All India (National)</td>
+                  <td>Protection for Children from Abuse, Neglect & Distress</td>
+                  <td><a href="https://childlineindia.org" target="_blank" rel="noopener">childlineindia.org</a></td>
                 </tr>
                 <tr>
-                  <td><strong>National Cybercrime Reporting Helpline</strong></td>
+                  <td><strong>National Cybercrime Reporting Portal</strong></td>
                   <td><span class="badge-tag warn">1930</span></td>
                   <td>National (MHA)</td>
-                  <td>Cyber & Financial</td>
-                  <td><a href="https://cybercrime.gov.in" target="_blank">cybercrime.gov.in</a></td>
+                  <td>Financial Cyber Fraud, Identity Theft & Online Harassment</td>
+                  <td><a href="https://cybercrime.gov.in" target="_blank" rel="noopener">cybercrime.gov.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>Emergency Medical & Trauma Ambulance</strong></td>
+                  <td><span class="badge-tag alert">108</span></td>
+                  <td>All India / Gujarat</td>
+                  <td>Free 24x7 Emergency Medical Response & Hospital Transport</td>
+                  <td><a href="https://nhm.gov.in" target="_blank" rel="noopener">nhm.gov.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>Police Emergency Control Room</strong></td>
+                  <td><span class="badge-tag">100</span></td>
+                  <td>All India</td>
+                  <td>Direct Police Patrol Vehicle & Station Dispatch</td>
+                  <td><a href="https://mha.gov.in" target="_blank" rel="noopener">mha.gov.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>Women Power Line (Anti-Stalking)</strong></td>
+                  <td><span class="badge-tag highlight">1090</span></td>
+                  <td>Regional Police Support</td>
+                  <td>Anonymous Reporting of Phone Harassment & Stalking</td>
+                  <td><a href="https://1090up.in" target="_blank" rel="noopener">1090up.in</a></td>
+                </tr>
+                <tr>
+                  <td><strong>National Legal Services Authority (NALSA)</strong></td>
+                  <td><span class="badge-tag">15100</span></td>
+                  <td>All India (Statutory)</td>
+                  <td>Free Legal Aid, Advice, and Victim Compensation Support</td>
+                  <td><a href="https://nalsa.gov.in" target="_blank" rel="noopener">nalsa.gov.in</a></td>
                 </tr>
               </tbody>
             </table>
@@ -262,21 +400,181 @@
     </main>
   </div>
 
-  <!-- Reassign Officer Modal -->
+  <!-- ==========================================
+       SECTION 3: CASE DOSSIER DETAIL MODAL
+       ========================================== -->
+  <div id="case-dossier-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dossier-card">
+      <div class="modal-dossier-header">
+        <div>
+          <span class="badge-tag alert" id="modal-priority-badge">URGENT</span>
+          <h3 id="modal-case-heading" style="display: inline-block; margin-left: 8px;">Case Dossier: DURGA-2026-XXXXX</h3>
+        </div>
+        <button class="btn-close-modal" onclick="closeCaseDossier()">&times;</button>
+      </div>
+
+      <div class="modal-dossier-body">
+        <!-- Section: Overview & Status -->
+        <div class="dossier-section">
+          <h4>📌 Incident Overview</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Case Reference No</label>
+              <span id="modal-ref-no">DURGA-2026-08192</span>
+            </div>
+            <div class="info-item">
+              <label>Category</label>
+              <span id="modal-category">DOMESTIC_VIOLENCE</span>
+            </div>
+            <div class="info-item">
+              <label>Incident Date & Time</label>
+              <span id="modal-incident-datetime">2026-09-24 • 14:30</span>
+            </div>
+            <div class="info-item">
+              <label>Current Status</label>
+              <span id="modal-current-status" class="status-badge status-UNDER_INVESTIGATION">UNDER INVESTIGATION</span>
+            </div>
+            <div class="info-item">
+              <label>Incident Location</label>
+              <span id="modal-location">Gandhinagar, Gujarat</span>
+            </div>
+            <div class="info-item">
+              <label>Assigned Officer</label>
+              <span id="modal-officer">Inspector R. Sharma (POL-GJ-4029)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Complainant Information (Privacy Controlled) -->
+        <div class="dossier-section">
+          <h4>👤 Complainant & Protection Details</h4>
+          <div class="info-grid" id="modal-complainant-grid">
+            <!-- Populated securely -->
+          </div>
+        </div>
+
+        <!-- Section: Incident Statement & AI Structured Narrative -->
+        <div class="dossier-section">
+          <h4>📝 Incident Statement & Facts</h4>
+          <div style="margin-bottom: 12px;">
+            <strong style="font-size: 12px; color: #475569;">Citizen's Original Narrative:</strong>
+            <div class="narrative-box" id="modal-original-description" style="margin-top: 6px;"></div>
+          </div>
+          <div id="modal-structured-wrapper">
+            <strong style="font-size: 12px; color: #475569;">AI-Structured Legal Complaint Draft:</strong>
+            <div class="narrative-box" id="modal-structured-description" style="margin-top: 6px; border-left-color: #8B5CF6;"></div>
+          </div>
+        </div>
+
+        <!-- Section: Deposited Evidence Vault -->
+        <div class="dossier-section">
+          <h4>📎 Digital Evidence Vault (Cryptographic SHA-256 Validated)</h4>
+          <div class="evidence-items-list" id="modal-evidence-list">
+            <!-- Dynamically populated evidence with SHA-256 hashes -->
+          </div>
+        </div>
+
+        <!-- Section: Investigation Timeline -->
+        <div class="dossier-section">
+          <h4>⏳ Chronological Case Timeline</h4>
+          <div class="timeline-list" id="modal-timeline-list">
+            <!-- Dynamically populated events -->
+          </div>
+        </div>
+
+        <!-- Section: Official Notes -->
+        <div class="dossier-section">
+          <h4>📋 Official Police & Administrative Notes</h4>
+          <div id="modal-notes-list" style="margin-bottom: 16px;"></div>
+        </div>
+
+        <!-- Section: Action Center (Update Status & Add Official Remarks) -->
+        <div class="dossier-section" style="background: #F8FAFC; padding: 16px; border-radius: 8px;">
+          <h4>⚡ Official Police Action & Status Update</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-field">
+              <label>Update Investigation Status:</label>
+              <select id="modal-update-status-select">
+                <option value="UNDER_REVIEW">UNDER REVIEW</option>
+                <option value="ASSIGNED">ASSIGNED TO OFFICER</option>
+                <option value="UNDER_INVESTIGATION">UNDER INVESTIGATION</option>
+                <option value="ACTION_TAKEN">ACTION TAKEN / PATROL DISPATCHED</option>
+                <option value="RESOLVED">RESOLVED & CITIZEN SAFE</option>
+                <option value="CLOSED">CASE CLOSED</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Assign / Reassign Police Officer:</label>
+              <select id="modal-update-officer-select">
+                <!-- Dynamically filled with officers -->
+              </select>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Official Station Remarks / Action Taken:</label>
+            <textarea id="modal-action-remarks" rows="2" placeholder="Enter official police action, field instructions, or victim safety status..."></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="submitCaseStatusUpdate()">Save Official Update & Log Audit</button>
+        </div>
+      </div>
+
+      <div class="modal-dossier-footer">
+        <button class="btn btn-outline" onclick="printOfficialDocket()">🖨️ Print Official Case Docket</button>
+        <button class="btn btn-secondary" onclick="closeCaseDossier()">Close Dossier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reassign Officer Quick Modal -->
   <div id="reassign-modal" class="modal-backdrop" style="display:none;">
     <div class="modal-card">
       <h3>Assign Police Officer</h3>
-      <p id="modal-case-title">Case ID: ...</p>
+      <p id="modal-assign-title" style="font-size: 13px; color: #64748B; margin-bottom: 14px;">Select an authorized officer for this case</p>
       <div class="form-group">
         <label>Select Authorized Officer:</label>
-        <select id="modal-officer-select">
-          <option value="officer-user-001">Inspector R. Sharma (Badge: POL-GJ-4029)</option>
-          <option value="officer-user-002">Sub-Inspector P. Patel (Badge: POL-GJ-8102)</option>
+        <select id="modal-officer-select" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+          <!-- Dynamically filled -->
         </select>
       </div>
-      <div class="modal-actions">
+      <div class="form-group">
+        <label>Admin Triage Remarks:</label>
+        <input type="text" id="modal-assign-remarks" placeholder="Optional notes for assigned officer..." style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
         <button class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
         <button class="btn btn-primary" onclick="confirmAssignOfficer()">Confirm Assignment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Officer Modal -->
+  <div id="register-officer-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <h3>Register Police / Nodal Officer</h3>
+      <p style="font-size: 12px; color: #64748B; margin-bottom: 14px;">Authorized law enforcement credential creation</p>
+      <div class="form-group">
+        <label>Badge Number / ID:</label>
+        <input type="text" id="new-officer-badge" placeholder="e.g. POL-GJ-9021" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+      </div>
+      <div class="form-group">
+        <label>Officer Full Name & Rank:</label>
+        <input type="text" id="new-officer-name" placeholder="e.g. Inspector K. Trivedi" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+      </div>
+      <div class="form-group">
+        <label>Official Email Address:</label>
+        <input type="email" id="new-officer-email" placeholder="e.g. officer.trivedi@police.gov.in" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+      </div>
+      <div class="form-group">
+        <label>Assigned Role:</label>
+        <select id="new-officer-role" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+          <option value="ROLE_POLICE_OFFICER">Police Investigating Officer</option>
+          <option value="ROLE_SENIOR_OFFICER">Senior Supervisory Officer (DSP / SP)</option>
+          <option value="ROLE_AUTHORITY_REVIEWER">Nodal Statutory Reviewer</option>
+        </select>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
+        <button class="btn btn-secondary" onclick="closeNewOfficerModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmRegisterOfficer()">Register Officer</button>
       </div>
     </div>
   </div>

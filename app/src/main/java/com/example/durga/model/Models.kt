@@ -185,3 +185,23 @@ data class AiGeneratedDraft(
     val missingQuestions: List<String> = emptyList(),
     val suggestedLegalSafeguards: String = ""
 )
+
+@Entity(tableName = "case_notifications")
+data class CaseNotificationEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val caseId: String = "",
+    val title: String,
+    val category: String = "GENERAL",
+    val progressPercent: Int = 100, // 0 - 100% work completed
+    val stageTitle: String = "", // Current stage of investigation or version tag
+    val isActionTaken: Boolean = false, // Whether police took active action
+    val actionStatusText: String = "", // Display status of the action
+    val actionDetails: String = "", // Specific police/authority action taken or feature release details
+    val officerName: String = "Insp. R.K. Rathod",
+    val policeStation: String = "Women Safety & Cyber Cell",
+    val fullSummary: String = "",
+    val isRead: Boolean = false,
+    val timestamp: Long = System.currentTimeMillis(),
+    val notificationType: String = "CASE_UPDATE", // "CASE_UPDATE", "APP_FEATURE", "SYSTEM_UPDATE"
+    val targetRoute: String = "" // e.g. "web_portals", "emergency", "private_vault", "case_details"
+)

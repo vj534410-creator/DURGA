@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
@@ -100,6 +101,8 @@ fun DurgaTopBar(
     onToggleAccessibility: (() -> Unit)? = null,
     onOpenThemePicker: (() -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
+    onOpenNotifications: (() -> Unit)? = null,
+    unreadNotificationCount: Int = 0,
     subtitle: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -235,6 +238,41 @@ fun DurgaTopBar(
                                     langMenuExpanded = false
                                 }
                             )
+                        }
+                    }
+                }
+
+                // Optional Case Updates & Police Action Notifications Bell
+                if (onOpenNotifications != null) {
+                    Box {
+                        IconButton(
+                            onClick = onOpenNotifications,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("top_bar_notifications_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Case Notifications",
+                                tint = if (unreadNotificationCount > 0) colors.primary else colors.textPrimary
+                            )
+                        }
+                        if (unreadNotificationCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 4.dp, end = 4.dp)
+                                    .size(16.dp)
+                                    .background(Color(0xFFE53935), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (unreadNotificationCount > 9) "9+" else unreadNotificationCount.toString(),
+                                    color = Color.White,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -27,10 +29,12 @@ import com.example.durga.ui.screens.AiComplaintDraftScreen
 import com.example.durga.ui.screens.AuthorityAdminDashboardScreen
 import com.example.durga.ui.screens.CaseCreatedScreen
 import com.example.durga.ui.screens.CaseDetailsScreen
+import com.example.durga.ui.screens.CaseNotificationsScreen
 import com.example.durga.ui.screens.ChildFriendlyScreen
 import com.example.durga.ui.screens.ComplainantDetailsScreen
 import com.example.durga.ui.screens.ComplaintCategoryScreen
 import com.example.durga.ui.screens.ComplaintInputScreen
+import com.example.durga.ui.screens.DurgaWebPortalsScreen
 import com.example.durga.ui.screens.EditComplaintScreen
 import com.example.durga.ui.screens.EmergencyScreen
 import com.example.durga.ui.screens.EvidenceSelectionScreen
@@ -70,6 +74,8 @@ object DurgaRoutes {
     const val PRIVATE_VAULT = "private_vault"
     const val PRIVACY_CENTER = "privacy_center"
     const val AUTHORITY_PORTAL = "authority_portal"
+    const val WEB_PORTALS = "web_portals"
+    const val CASE_NOTIFICATIONS = "case_notifications"
     const val SETTINGS = "settings"
 }
 
@@ -123,6 +129,22 @@ fun DurgaApp(
     val selectedCaseUpdates by viewModel.getUpdatesForSelectedCase().collectAsState(initial = emptyList())
     val currentTheme by viewModel.currentTheme.collectAsState()
 
+    val allNotifications by viewModel.allNotifications.collectAsState()
+    val unreadNotificationsCount by viewModel.unreadNotificationsCount.collectAsState()
+    val notificationFilter by viewModel.notificationFilter.collectAsState()
+
+    val activityContext = LocalContext.current as? ComponentActivity
+    LaunchedEffect(activityContext?.intent) {
+        val target = activityContext?.intent?.getStringExtra("NAVIGATE_TO")
+        val targetCaseId = activityContext?.intent?.getStringExtra("TARGET_CASE_ID")
+        if (target == "case_notifications") {
+            if (!targetCaseId.isNullOrBlank()) {
+                viewModel.selectCase(targetCaseId)
+            }
+            navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS)
+        }
+    }
+
     // Always launch directly to the main Home Screen so the user immediately sees the full app interface
     val startDestination = DurgaRoutes.HOME
 
@@ -164,6 +186,10 @@ fun DurgaApp(
                         onNavigateToPrivacyCenter = { navController.navigate(DurgaRoutes.PRIVACY_CENTER) },
                         onNavigateToSettings = { navController.navigate(DurgaRoutes.SETTINGS) },
                         onNavigateToAuthorityPortal = { navController.navigate(DurgaRoutes.AUTHORITY_PORTAL) },
+                        onNavigateToWebPortals = { navController.navigate(DurgaRoutes.WEB_PORTALS) },
+                        onNavigateToNotifications = { navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS) },
+                        unreadNotificationCount = unreadNotificationsCount,
+                        latestNotification = allNotifications.firstOrNull(),
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onThemeChange = { viewModel.setTheme(it) },
                         onStartCategoryComplaint = { category ->
@@ -368,6 +394,7 @@ fun DurgaApp(
                             navController.navigate(DurgaRoutes.CASE_DETAILS)
                         },
                         onBack = { navController.popBackStack() },
+                        onNavigateToNotifications = { navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS) },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
@@ -381,6 +408,7 @@ fun DurgaApp(
                         caseEntity = caseItem,
                         caseUpdates = selectedCaseUpdates,
                         onBack = { navController.popBackStack() },
+                        onNavigateToNotifications = { navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS) },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
@@ -494,6 +522,7 @@ fun DurgaApp(
                         onBack = { navController.popBackStack() },
                         onQuickExit = { viewModel.triggerQuickExit() },
                         onNavigateToAuthorityPortal = { navController.navigate(DurgaRoutes.AUTHORITY_PORTAL) },
+                        onNavigateToWebPortals = { navController.navigate(DurgaRoutes.WEB_PORTALS) },
                         onNavigate = { route ->
                             when (route) {
                                 "home" -> navController.navigate(DurgaRoutes.HOME) { popUpTo(DurgaRoutes.HOME) { inclusive = true } }
@@ -537,6 +566,40 @@ fun DurgaApp(
                         onRecordAuditAction = { caseId, action, reason ->
                             viewModel.recordAuthorityAction(caseId, action, reason)
                         },
+                        onNavigateToWebPortals = { navController.navigate(DurgaRoutes.WEB_PORTALS) },
+                        onBack = { navController.popBackStack() },
+                        onLanguageChange = { viewModel.setLanguage(it) },
+                        onQuickExit = { viewModel.triggerQuickExit() }
+                    )
+                }
+
+                // 23. Live Web Portals (In-App WebView & Direct Browser Launch)
+                composable(DurgaRoutes.WEB_PORTALS) {
+                    DurgaWebPortalsScreen(
+                        currentLanguage = currentLang,
+                        onBack = { navController.popBackStack() },
+                        onLanguageChange = { viewModel.setLanguage(it) },
+                        onQuickExit = { viewModel.triggerQuickExit() }
+                    )
+                }
+
+                // 24. Live Case Updates & Police Action Notifications Center
+                composable(DurgaRoutes.CASE_NOTIFICATIONS) {
+                    CaseNotificationsScreen(
+                        currentLanguage = currentLang,
+                        notifications = allNotifications,
+                        unreadCount = unreadNotificationsCount,
+                        activeFilter = notificationFilter,
+                        onFilterChange = { viewModel.setNotificationFilter(it) },
+                        onMarkAsRead = { viewModel.markNotificationAsRead(it) },
+                        onMarkAllAsRead = { viewModel.markAllNotificationsAsRead() },
+                        onDeleteNotification = { viewModel.deleteNotification(it) },
+                        onDeleteAll = { viewModel.deleteAllNotifications() },
+                        onSelectCase = { caseId ->
+                            viewModel.selectCase(caseId)
+                            navController.navigate(DurgaRoutes.CASE_DETAILS)
+                        },
+                        onSimulateNextUpdate = { viewModel.simulateNextPoliceUpdate() },
                         onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }

@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PrivacyTip
@@ -54,6 +55,8 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Work
+import androidx.compose.material3.LinearProgressIndicator
+import com.example.durga.model.CaseNotificationEntity
 import com.example.durga.model.IncidentCategory
 import com.example.durga.ui.components.ThemeSelectionDialog
 import com.example.ui.theme.DurgaThemeMode
@@ -144,6 +147,10 @@ fun HomeScreen(
     onNavigateToPrivacyCenter: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToAuthorityPortal: () -> Unit,
+    onNavigateToWebPortals: () -> Unit = onNavigateToAuthorityPortal,
+    onNavigateToNotifications: () -> Unit = {},
+    unreadNotificationCount: Int = 0,
+    latestNotification: CaseNotificationEntity? = null,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
     onThemeChange: (DurgaThemeMode) -> Unit = {},
@@ -208,6 +215,8 @@ fun HomeScreen(
                 onBack = null,
                 onLanguageChange = onLanguageChange,
                 onQuickExit = onQuickExit,
+                onOpenNotifications = onNavigateToNotifications,
+                unreadNotificationCount = unreadNotificationCount,
                 onToggleAccessibility = { isAccessibilityLargeText = !isAccessibilityLargeText }
             )
         },
@@ -310,6 +319,187 @@ fun HomeScreen(
                                     )
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // 1.5. REAL-TIME CASE PROGRESSION & POLICE ACTION NOTIFICATIONS BANNER
+            item {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToNotifications() }
+                        .testTag("home_case_tracker_banner")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(colors.primaryContainer, RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Notifications,
+                                        contentDescription = null,
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "પોલીસ કાર્યવાહી & કેસ અપડેટ્સ"
+                                            DurgaLanguage.HINDI -> "पुलिस कार्रवाई एवं केस अपडेट"
+                                            else -> "Police Actions & Case Updates"
+                                        },
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary,
+                                            fontSize = 15.sp
+                                        )
+                                    )
+                                    Text(
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "ફરિયાદ પર થયેલ કામ અને પગલાંની સૂચના"
+                                            DurgaLanguage.HINDI -> "शिकायत पर हुई कार्रवाई और प्रगति की सूचना"
+                                            else -> "Work progress & police action notifications"
+                                        },
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            if (unreadNotificationCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFE53935), RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "$unreadNotificationCount નવી",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        if (latestNotification != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "કેસ: ${latestNotification.caseId}",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary,
+                                        fontSize = 12.sp
+                                    )
+                                )
+                                Text(
+                                    text = "${latestNotification.progressPercent}% કામ પૂર્ણ",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (latestNotification.progressPercent >= 90) Color(0xFF2E7D32) else colors.primary,
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            LinearProgressIndicator(
+                                progress = { latestNotification.progressPercent / 100f },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = if (latestNotification.progressPercent >= 90) Color(0xFF2E7D32) else colors.primary,
+                                trackColor = colors.outline.copy(alpha = 0.3f),
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (latestNotification.isActionTaken) Color(0xFFE8F5E9) else Color(0xFFFFF8E1),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .border(
+                                        0.5.dp,
+                                        if (latestNotification.isActionTaken) Color(0xFF2E7D32) else Color(0xFFF57F17),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = if (latestNotification.isActionTaken) {
+                                        "✅ પોલીસ કાર્યવાહી: ${latestNotification.actionDetails.take(70)}..."
+                                    } else {
+                                        "⏳ તપાસ ચાલુ: ${latestNotification.actionDetails.take(70)}..."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = if (latestNotification.isActionTaken) Color(0xFF1B5E20) else Color(0xFFE65100),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    maxLines = 2
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "તમારી કોઈપણ ફરિયાદ દાખલ કરો ત્યારે તેનું કામ કેટલું થયું અને પોલીસે શું પગલાં લીધા તેની લાઈવ સૂચના અહીં મળશે."
+                                    DurgaLanguage.HINDI -> "शिकायत दर्ज होने पर जांच का कार्य कितना हुआ और पुलिस ने क्या कार्रवाई की, उसकी सूचना यहाँ मिलेगी।"
+                                    else -> "Track case stages, work progress %, and police actions taken in real time."
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = colors.textSecondary,
+                                    fontSize = 12.sp
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "સૂચનાઓ અને પ્રગતિ જુઓ →"
+                                    DurgaLanguage.HINDI -> "सूचनाएं एवं प्रगति देखें →"
+                                    else -> "View Notifications & Progress →"
+                                },
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.primary,
+                                    fontSize = 12.sp
+                                )
+                            )
                         }
                     }
                 }
@@ -1095,31 +1285,105 @@ fun HomeScreen(
                 }
             }
 
-            // 8. Official Authority / Auditor Login Link
+            // 8. Official Police & Central Admin Portals Hub
             item {
-                Row(
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onNavigateToAuthorityPortal)
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AdminPanelSettings,
-                        contentDescription = "Authority Portal",
-                        tint = DurgaTextLightMuted,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Authorized Official & Auditor Portal",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = DurgaTextSecondaryMuted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(DurgaPrimaryNavy, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AdminPanelSettings,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "🛡️ પોલીસ અને એડમિન લાઈવ વેબ પોર્ટલ"
+                                        DurgaLanguage.HINDI -> "🛡️ पुलिस एवं एडमिन लाइव वेब पोर्टल"
+                                        DurgaLanguage.ENGLISH -> "🛡️ Police & Admin Live Portals"
+                                    },
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = DurgaTextNavy
+                                    )
+                                )
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "એપમાંથી સીધું જ ઓપન કરો (Direct connected, no redirect)"
+                                        DurgaLanguage.HINDI -> "ऐप से ही सीधा खोलें (Direct connected, no redirect)"
+                                        DurgaLanguage.ENGLISH -> "Open directly inside app without browser redirects"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 11.sp,
+                                        color = DurgaTextSecondaryMuted
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onNavigateToWebPortals,
+                                colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .minimumInteractiveComponentSize()
+                            ) {
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "વેબ પોર્ટલ ખોલો"
+                                        DurgaLanguage.HINDI -> "वेब पोर्टल खोलें"
+                                        DurgaLanguage.ENGLISH -> "Open Live Portals"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+
+                            Button(
+                                onClick = onNavigateToAuthorityPortal,
+                                colors = ButtonDefaults.buttonColors(containerColor = DurgaBackgroundLight),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .minimumInteractiveComponentSize()
+                            ) {
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "ઓફિસર લૉગિન"
+                                        DurgaLanguage.HINDI -> "अधिकारी लॉगिन"
+                                        DurgaLanguage.ENGLISH -> "Officer Desk"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = DurgaTextNavy
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

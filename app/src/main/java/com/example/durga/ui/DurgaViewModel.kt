@@ -12,6 +12,7 @@ import com.example.durga.model.AiGeneratedDraft
 import com.example.durga.model.AuditAccessLogEntity
 import com.example.durga.model.AuthorityRole
 import com.example.durga.model.CaseEntity
+import com.example.durga.model.CaseNotificationEntity
 import com.example.durga.model.CaseStatus
 import com.example.durga.model.CaseUpdateEntity
 import com.example.durga.model.DraftComplaintEntity
@@ -139,6 +140,49 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
 
     val auditLogs: StateFlow<List<AuditAccessLogEntity>> = repository.allAuditLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allNotifications: StateFlow<List<CaseNotificationEntity>> = repository.allNotifications
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val unreadNotificationsCount: StateFlow<Int> = repository.unreadNotificationsCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private val _notificationFilter = MutableStateFlow("ALL")
+    val notificationFilter: StateFlow<String> = _notificationFilter.asStateFlow()
+
+    fun setNotificationFilter(filter: String) {
+        _notificationFilter.value = filter
+    }
+
+    fun markNotificationAsRead(id: String) {
+        viewModelScope.launch {
+            repository.markNotificationAsRead(id)
+        }
+    }
+
+    fun markAllNotificationsAsRead() {
+        viewModelScope.launch {
+            repository.markAllNotificationsAsRead()
+        }
+    }
+
+    fun deleteNotification(id: String) {
+        viewModelScope.launch {
+            repository.deleteNotification(id)
+        }
+    }
+
+    fun deleteAllNotifications() {
+        viewModelScope.launch {
+            repository.deleteAllNotifications()
+        }
+    }
+
+    fun simulateNextPoliceUpdate(targetCaseId: String? = null) {
+        viewModelScope.launch {
+            repository.simulatePoliceProgression(targetCaseId)
+        }
+    }
 
     // --- Actions ---
 

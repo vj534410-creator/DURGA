@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Policy
 import com.example.ui.theme.DurgaThemeMode
@@ -1354,6 +1355,7 @@ fun AuthorityAdminDashboardScreen(
     onLogout: () -> Unit,
     onUpdateCaseStatus: (caseId: String, status: String, msg: String) -> Unit,
     onRecordAuditAction: (caseId: String, action: String, reason: String) -> Unit,
+    onNavigateToWebPortals: () -> Unit = {},
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
@@ -1528,6 +1530,35 @@ fun AuthorityAdminDashboardScreen(
                                 )
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = onNavigateToWebPortals,
+                        colors = ButtonDefaults.buttonColors(containerColor = DurgaSurfaceWhite),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DurgaPrimaryNavy),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.OpenInBrowser,
+                            contentDescription = null,
+                            tint = DurgaPrimaryNavy,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = when (currentLanguage) {
+                                DurgaLanguage.GUJARATI -> "🌐 લાઈવ વેબ પોર્ટલ ખોલો (Admin & Police Desks)"
+                                DurgaLanguage.HINDI -> "🌐 लाइव वेब पोर्टल खोलें (Admin & Police Desks)"
+                                DurgaLanguage.ENGLISH -> "🌐 Launch Live Web Portals (Admin & Police)"
+                            },
+                            color = DurgaPrimaryNavy,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             } else {

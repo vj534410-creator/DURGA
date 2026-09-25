@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
@@ -104,6 +105,7 @@ fun SettingsScreen(
     onQuickExit: () -> Unit,
     onNavigate: (String) -> Unit,
     onNavigateToAuthorityPortal: () -> Unit = {},
+    onNavigateToWebPortals: () -> Unit = onNavigateToAuthorityPortal,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalDurgaColors.current
@@ -643,6 +645,37 @@ fun SettingsScreen(
                                             DurgaLanguage.ENGLISH -> "Access Officer / Admin Portal"
                                         },
                                         color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Button(
+                                    onClick = onNavigateToWebPortals,
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.surface),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("open_live_web_portals_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInBrowser,
+                                        contentDescription = null,
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "🌐 લાઈવ વેબ પોર્ટલ ખોલો (Admin & Police Desks)"
+                                            DurgaLanguage.HINDI -> "🌐 लाइव वेब पोर्टल खोलें (Admin & Police Desks)"
+                                            DurgaLanguage.ENGLISH -> "🌐 Launch Live Web Portals (Admin & Police)"
+                                        },
+                                        color = colors.primary,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp
                                     )

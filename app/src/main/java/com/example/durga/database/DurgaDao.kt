@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.durga.model.AuditAccessLogEntity
 import com.example.durga.model.CaseEntity
+import com.example.durga.model.CaseNotificationEntity
 import com.example.durga.model.CaseUpdateEntity
 import com.example.durga.model.DraftComplaintEntity
 import com.example.durga.model.EvidenceEntity
@@ -142,3 +143,34 @@ interface AuditDao {
     @Query("DELETE FROM audit_access_logs")
     suspend fun deleteAllLogs()
 }
+
+@Dao
+interface CaseNotificationDao {
+    @Query("SELECT * FROM case_notifications ORDER BY timestamp DESC")
+    fun getAllNotifications(): Flow<List<CaseNotificationEntity>>
+
+    @Query("SELECT * FROM case_notifications WHERE caseId = :caseId ORDER BY timestamp DESC")
+    fun getNotificationsForCase(caseId: String): Flow<List<CaseNotificationEntity>>
+
+    @Query("SELECT COUNT(*) FROM case_notifications WHERE isRead = 0")
+    fun getUnreadCount(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNotification(notification: CaseNotificationEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNotifications(notifications: List<CaseNotificationEntity>)
+
+    @Query("UPDATE case_notifications SET isRead = 1 WHERE id = :id")
+    suspend fun markAsRead(id: String)
+
+    @Query("UPDATE case_notifications SET isRead = 1")
+    suspend fun markAllAsRead()
+
+    @Query("DELETE FROM case_notifications WHERE id = :id")
+    suspend fun deleteNotification(id: String)
+
+    @Query("DELETE FROM case_notifications")
+    suspend fun deleteAllNotifications()
+}
+
