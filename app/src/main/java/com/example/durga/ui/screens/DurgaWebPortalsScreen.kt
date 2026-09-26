@@ -112,6 +112,7 @@ fun DurgaWebPortalsScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -150,7 +151,8 @@ fun DurgaWebPortalsScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = DurgaBackgroundLight,

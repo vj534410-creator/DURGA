@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import com.example.durga.i18n.DurgaLanguage
 import com.example.durga.i18n.DurgaStrings
 import com.example.durga.model.OfficialServiceEntity
+import com.example.durga.ui.components.DurgaBottomNav
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.durga.ui.components.EmergencyCallCard
 import com.example.ui.theme.DurgaBackgroundLight
@@ -78,6 +79,8 @@ fun EmergencyScreen(
     onCallNumber: (String) -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onNavigate: ((String) -> Unit)? = null,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -99,8 +102,18 @@ fun EmergencyScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
+        },
+        bottomBar = {
+            if (onNavigate != null) {
+                DurgaBottomNav(
+                    currentRoute = "emergency",
+                    currentLanguage = currentLanguage,
+                    onNavigate = onNavigate
+                )
+            }
         },
         containerColor = DurgaBackgroundLight,
         modifier = modifier

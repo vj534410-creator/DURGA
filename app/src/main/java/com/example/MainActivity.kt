@@ -599,7 +599,27 @@ fun DurgaApp(
                             viewModel.selectCase(caseId)
                             navController.navigate(DurgaRoutes.CASE_DETAILS)
                         },
+                        onNavigateToRoute = { route ->
+                            when (route) {
+                                "web_portals" -> navController.navigate(DurgaRoutes.WEB_PORTALS)
+                                "private_vault" -> navController.navigate(DurgaRoutes.PRIVATE_VAULT)
+                                "emergency" -> navController.navigate(DurgaRoutes.EMERGENCY)
+                                "complaint_categories" -> navController.navigate(DurgaRoutes.COMPLAINT_CATEGORIES)
+                                "help_near_me" -> navController.navigate(DurgaRoutes.HELP_NEAR_ME)
+                                "case_details" -> navController.navigate(DurgaRoutes.CASE_DETAILS)
+                                "my_cases" -> navController.navigate(DurgaRoutes.MY_CASES)
+                                "home" -> navController.navigate(DurgaRoutes.HOME)
+                                else -> {
+                                    try {
+                                        navController.navigate(route)
+                                    } catch (_: Exception) {
+                                        navController.navigate(DurgaRoutes.HOME)
+                                    }
+                                }
+                            }
+                        },
                         onSimulateNextUpdate = { viewModel.simulateNextPoliceUpdate() },
+                        onSimulateFeatureUpdate = { viewModel.simulateNextAppFeature() },
                         onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }

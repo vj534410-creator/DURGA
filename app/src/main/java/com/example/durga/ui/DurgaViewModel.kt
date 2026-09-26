@@ -184,6 +184,18 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun simulateNextAppFeature() {
+        viewModelScope.launch {
+            repository.simulateNextAppFeatureUpdate()
+        }
+    }
+
+    fun broadcastNewAppFeature(title: String, version: String, details: String, targetRoute: String) {
+        viewModelScope.launch {
+            repository.broadcastAppFeatureNotification(title, version, details, targetRoute)
+        }
+    }
+
     // --- Actions ---
 
     fun setLanguage(language: DurgaLanguage) {

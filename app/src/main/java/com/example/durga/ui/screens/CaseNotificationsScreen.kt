@@ -28,12 +28,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.LocalPolice
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -80,6 +84,7 @@ import androidx.core.content.ContextCompat
 import com.example.durga.i18n.DurgaLanguage
 import com.example.durga.i18n.DurgaStrings
 import com.example.durga.model.CaseNotificationEntity
+import com.example.durga.ui.components.DurgaBottomNav
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.LocalDurgaColors
 import java.text.SimpleDateFormat
@@ -98,10 +103,14 @@ fun CaseNotificationsScreen(
     onDeleteNotification: (String) -> Unit,
     onDeleteAll: () -> Unit,
     onSelectCase: (String) -> Unit,
+    onNavigateToRoute: (String) -> Unit = {},
     onSimulateNextUpdate: () -> Unit,
+    onSimulateFeatureUpdate: () -> Unit = {},
     onBack: () -> Unit,
     onQuickExit: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
+    onNavigate: ((String) -> Unit)? = null,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -129,9 +138,9 @@ fun CaseNotificationsScreen(
             Toast.makeText(
                 context,
                 when (currentLanguage) {
-                    DurgaLanguage.GUJARATI -> "સૂચનાઓ સક્ષમ થઈ! હવે તમને કેસના તમામ અપડેટ્સ મળશે."
-                    DurgaLanguage.HINDI -> "सूचनाएं सक्षम की गईं! अब आपको केस के सभी अपडेट मिलेंगे।"
-                    else -> "Notifications enabled! You will now receive all case updates."
+                    DurgaLanguage.GUJARATI -> "સૂચનાઓ સક્ષમ થઈ! હવે તમને કેસના તમામ અપડેટ્સ અને નવા ફીચર્સ મળશે."
+                    DurgaLanguage.HINDI -> "सूचनाएं सक्षम की गईं! अब आपको केस के अपडेट और नए फीचर्स मिलेंगे।"
+                    else -> "Notifications enabled! You will now receive all case updates and new features."
                 },
                 Toast.LENGTH_SHORT
             ).show()
@@ -141,23 +150,24 @@ fun CaseNotificationsScreen(
     // Filtered list
     val filteredNotifications = remember(notifications, activeFilter) {
         when (activeFilter) {
-            "ACTION_TAKEN" -> notifications.filter { it.isActionTaken }
-            "IN_PROGRESS" -> notifications.filter { !it.isActionTaken }
+            "APP_FEATURES" -> notifications.filter { it.notificationType == "APP_FEATURE" }
+            "ACTION_TAKEN" -> notifications.filter { it.isActionTaken && it.notificationType != "APP_FEATURE" }
+            "IN_PROGRESS" -> notifications.filter { !it.isActionTaken && it.notificationType != "APP_FEATURE" }
             "UNREAD" -> notifications.filter { !it.isRead }
             else -> notifications
         }
     }
 
     val titleText = when (currentLanguage) {
-        DurgaLanguage.GUJARATI -> "કેસ સૂચનાઓ & કાર્યવાહી"
-        DurgaLanguage.HINDI -> "केस सूचनाएं एवं कार्रवाई"
-        else -> "Case Updates & Police Actions"
+        DurgaLanguage.GUJARATI -> "સૂચનાઓ & અપડેટ્સ (Notifications)"
+        DurgaLanguage.HINDI -> "सूचनाएं एवं अपडेट्स (Notifications)"
+        else -> "Notifications & App Updates"
     }
 
     val subtitleText = when (currentLanguage) {
-        DurgaLanguage.GUJARATI -> "તપાસ પ્રગતિ અને પોલીસ દ્વારા લેવાયેલા પગલાંની લાઈવ વિગતો"
-        DurgaLanguage.HINDI -> "जांच प्रगति और पुलिस द्वारा की गई कार्रवाई की लाइव जानकारी"
-        else -> "Live investigation progress and police action tracking"
+        DurgaLanguage.GUJARATI -> "પોલીસ કાર્યવાહી, તપાસ પ્રગતિ અને નવા એપ ફીચર્સ"
+        DurgaLanguage.HINDI -> "पुलिस कार्रवाई, जांच प्रगति और नए ऐप फीचर्स"
+        else -> "Police actions, investigation tracking & new app features"
     }
 
     Scaffold(
@@ -168,8 +178,18 @@ fun CaseNotificationsScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
+        },
+        bottomBar = {
+            if (onNavigate != null) {
+                DurgaBottomNav(
+                    currentRoute = "cases",
+                    currentLanguage = currentLanguage,
+                    onNavigate = onNavigate
+                )
+            }
         },
         containerColor = colors.background,
         modifier = modifier
@@ -344,7 +364,7 @@ fun CaseNotificationsScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Simulation button to progress the investigation and trigger instant real push notification
+                        // Simulation button 1: Case progression and police action
                         Button(
                             onClick = {
                                 onSimulateNextUpdate()
@@ -377,12 +397,60 @@ fun CaseNotificationsScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = when (currentLanguage) {
-                                        DurgaLanguage.GUJARATI -> "લાઈવ તપાસ પ્રગતિ અપડેટ મેળવો (Advance Work %)"
-                                        DurgaLanguage.HINDI -> "लाइव जांच प्रगति अपडेट प्राप्त करें (Advance Work %)"
-                                        else -> "Simulate Next Police Action & Progress Update"
+                                        DurgaLanguage.GUJARATI -> "પોલીસ કાર્યવાહી & કેસ પ્રગતિ ટેસ્ટ (Police Action)"
+                                        DurgaLanguage.HINDI -> "पुलिस कार्रवाई एवं केस प्रगति टेस्ट (Police Action)"
+                                        else -> "Simulate Police Action & Case Progress"
                                     },
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Simulation button 2: App Feature Update Notification
+                        OutlinedButton(
+                            onClick = {
+                                onSimulateFeatureUpdate()
+                                Toast.makeText(
+                                    context,
+                                    when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "નવા ફીચરની નોટિફિકેશન મોકલાઈ! નોટિફિકેશન બાર ચેક કરો."
+                                        DurgaLanguage.HINDI -> "नए ऐप फीचर की सूचना भेजी गई! नोटिफिकेशन बार देखें।"
+                                        else -> "New app feature release notification posted! Check notification bar."
+                                    },
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.primary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("simulate_feature_update_button")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "નવું એપ ફીચર નોટિફિકેશન ટેસ્ટ (New App Feature)"
+                                        DurgaLanguage.HINDI -> "नया ऐप फीचर नोटिफिकेशन टेस्ट (New App Feature)"
+                                        else -> "Simulate New App Feature Notification"
+                                    },
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        color = colors.primary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -409,20 +477,29 @@ fun CaseNotificationsScreen(
                             Icons.Default.NotificationsActive
                         ),
                         Triple(
+                            "APP_FEATURES",
+                            when (currentLanguage) {
+                                DurgaLanguage.GUJARATI -> "નવા ફીચર્સ (${notifications.count { it.notificationType == "APP_FEATURE" }})"
+                                DurgaLanguage.HINDI -> "नए फीचर्स (${notifications.count { it.notificationType == "APP_FEATURE" }})"
+                                else -> "Features (${notifications.count { it.notificationType == "APP_FEATURE" }})"
+                            },
+                            Icons.Default.AutoAwesome
+                        ),
+                        Triple(
                             "ACTION_TAKEN",
                             when (currentLanguage) {
-                                DurgaLanguage.GUJARATI -> "કાર્યવાહી થઈ (${notifications.count { it.isActionTaken }})"
-                                DurgaLanguage.HINDI -> "कार्रवाई हुई (${notifications.count { it.isActionTaken }})"
-                                else -> "Action Taken (${notifications.count { it.isActionTaken }})"
+                                DurgaLanguage.GUJARATI -> "કાર્યવાહી થઈ (${notifications.count { it.isActionTaken && it.notificationType != "APP_FEATURE" }})"
+                                DurgaLanguage.HINDI -> "कार्रवाई हुई (${notifications.count { it.isActionTaken && it.notificationType != "APP_FEATURE" }})"
+                                else -> "Action Taken (${notifications.count { it.isActionTaken && it.notificationType != "APP_FEATURE" }})"
                             },
                             Icons.Default.CheckCircle
                         ),
                         Triple(
                             "IN_PROGRESS",
                             when (currentLanguage) {
-                                DurgaLanguage.GUJARATI -> "તપાસ પ્રગતિમાં (${notifications.count { !it.isActionTaken }})"
-                                DurgaLanguage.HINDI -> "जांच जारी (${notifications.count { !it.isActionTaken }})"
-                                else -> "In Progress (${notifications.count { !it.isActionTaken }})"
+                                DurgaLanguage.GUJARATI -> "તપાસ પ્રગતિમાં (${notifications.count { !it.isActionTaken && it.notificationType != "APP_FEATURE" }})"
+                                DurgaLanguage.HINDI -> "जांच जारी (${notifications.count { !it.isActionTaken && it.notificationType != "APP_FEATURE" }})"
+                                else -> "In Progress (${notifications.count { !it.isActionTaken && it.notificationType != "APP_FEATURE" }})"
                             },
                             Icons.Default.HourglassTop
                         ),
@@ -521,7 +598,8 @@ fun CaseNotificationsScreen(
                     currentLanguage = currentLanguage,
                     onMarkAsRead = { onMarkAsRead(item.id) },
                     onDelete = { onDeleteNotification(item.id) },
-                    onOpenCase = { onSelectCase(item.caseId) }
+                    onOpenCase = { onSelectCase(item.caseId) },
+                    onNavigateToRoute = onNavigateToRoute
                 )
             }
 
@@ -561,12 +639,247 @@ fun CaseNotificationCard(
     onMarkAsRead: () -> Unit,
     onDelete: () -> Unit,
     onOpenCase: () -> Unit,
+    onNavigateToRoute: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LocalDurgaColors.current
     val formattedTime = remember(notification.timestamp) {
         val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
         sdf.format(Date(notification.timestamp))
+    }
+
+    val isFeatureNotification = notification.notificationType == "APP_FEATURE"
+
+    if (isFeatureNotification) {
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (notification.isRead) colors.surface else colors.primaryContainer.copy(alpha = 0.35f)
+            ),
+            border = androidx.compose.foundation.BorderStroke(
+                if (notification.isRead) 1.dp else 1.5.dp,
+                if (notification.isRead) colors.outline else colors.primary
+            ),
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable {
+                    if (!notification.isRead) onMarkAsRead()
+                    if (notification.targetRoute.isNotBlank()) onNavigateToRoute(notification.targetRoute)
+                }
+                .testTag("feature_notification_${notification.id}")
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .background(colors.primaryContainer, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = notification.stageTitle.ifBlank { "નવું ફીચર / NEW FEATURE" },
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = formattedTime,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.textSecondary,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!notification.isRead) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(colors.primary, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .testTag("delete_notification_${notification.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = colors.textSecondary.copy(alpha = 0.6f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Feature Title
+                Text(
+                    text = notification.title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                        fontSize = 15.sp
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Feature Details Box
+                Card(
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.background),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.outline),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Extension,
+                                contentDescription = null,
+                                tint = colors.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "ફેરફાર & નવી સુવિધાઓ (What's New):"
+                                    DurgaLanguage.HINDI -> "परिवर्तन एवं नई सुविधाएं (What's New):"
+                                    else -> "App Feature Details & Release Notes:"
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary,
+                                    fontSize = 12.sp
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = notification.actionDetails,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.textPrimary,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider(color = colors.outline, thickness = 0.5.dp)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "DURGA Core • Feature Release",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = colors.textSecondary,
+                                    fontSize = 10.sp
+                                )
+                            )
+                            Text(
+                                text = "સુરક્ષા અપડેટ / Security Update",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = colors.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 10.sp
+                                )
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Action Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (notification.targetRoute.isNotBlank()) {
+                        Button(
+                            onClick = {
+                                if (!notification.isRead) onMarkAsRead()
+                                onNavigateToRoute(notification.targetRoute)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("open_feature_${notification.id}")
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Launch,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "આ ફીચર ખોલો (Try Feature Now)"
+                                        DurgaLanguage.HINDI -> "यह फीचर खोलें (Try Feature Now)"
+                                        else -> "Explore Feature Now"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+
+                    if (!notification.isRead) {
+                        TextButton(onClick = onMarkAsRead) {
+                            Text(
+                                text = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "વાંચ્યું (Read)"
+                                    DurgaLanguage.HINDI -> "पढ़ा (Read)"
+                                    else -> "Mark Read"
+                                },
+                                fontSize = 11.sp,
+                                color = colors.textSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        return
     }
 
     val actionBadgeBg = if (notification.isActionTaken) {

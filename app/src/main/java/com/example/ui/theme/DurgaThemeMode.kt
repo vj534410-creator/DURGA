@@ -93,7 +93,10 @@ data class DurgaCustomColors(
     val textPrimary: Color,
     val textSecondary: Color,
     val textMuted: Color,
-    val isDark: Boolean
+    val isDark: Boolean,
+    val accentRose: Color = Color(0xFFBE185D),
+    val navyDeep: Color = Color(0xFF0F172A),
+    val lavenderLight: Color = Color(0xFFFDF2F8)
 )
 
 val LocalDurgaColors = staticCompositionLocalOf {

@@ -486,11 +486,117 @@ class DurgaRepository(private val context: Context) {
         newNotification
     }
 
+    suspend fun broadcastAppFeatureNotification(
+        title: String,
+        versionTag: String = "v2.5 અપડેટ",
+        details: String,
+        targetRoute: String = "home"
+    ): CaseNotificationEntity = withContext(Dispatchers.IO) {
+        val notification = CaseNotificationEntity(
+            caseId = "FEATURE-" + (1000..9999).random(),
+            title = title,
+            category = "APP_FEATURE",
+            progressPercent = 100,
+            stageTitle = versionTag,
+            isActionTaken = true,
+            actionStatusText = "નવું ફીચર તૈયાર (New Feature Active)",
+            actionDetails = details,
+            officerName = "DURGA Core Engineering",
+            policeStation = "DURGA Application Platform",
+            fullSummary = details,
+            isRead = false,
+            timestamp = System.currentTimeMillis(),
+            notificationType = "APP_FEATURE",
+            targetRoute = targetRoute
+        )
+        notificationDao.insertNotification(notification)
+        DurgaNotificationHelper.postAppUpdateNotification(context, notification)
+        notification
+    }
+
+    private var featureSimIndex = 0
+
+    suspend fun simulateNextAppFeatureUpdate(): CaseNotificationEntity = withContext(Dispatchers.IO) {
+        val featureUpdates = listOf(
+            Triple(
+                "🚀 નવું ફીચર: લાઈવ પોલીસ કાર્યવાહી અને કેસ ટ્રેકિંગ નોટિફિકેશન",
+                "તમારી નોંધાયેલી ફરિયાદ પર કેટલું કામ થયું (Work % Progress) અને પોલીસે શું કાનૂની કાર્યવાહી લીધી (Action Taken) તેની ક્ષણે-ક્ષણની લાઈવ સૂચનાઓ હવે સીધા નોટિફિકેશન બારમાં મળશે.",
+                "case_notifications"
+            ),
+            Triple(
+                "🌐 નવું ફીચર: સત્તાવાર મહિલા સુરક્ષા અને સાયબર પોર્ટલ્સ ડિરેક્ટરી",
+                "NCW, Cybercrime.gov.in, 181 અભયમ અને NALSA જેવા તમામ સત્તાવાર સરકારી પોર્ટલ્સ હવે એપમાં ઇન-બિલ્ટ વેબવ્યૂ સાથે સીધા ઉપલબ્ધ છે.",
+                "web_portals"
+            ),
+            Triple(
+                "🔒 નવું ફીચર: એન્ક્રિપ્ટેડ પ્રાઈવેટ વોલ્ટ & બાયોમેટ્રિક સેફ લોકર",
+                "તમારા ગોપનીય ફોટો, વિડિયો અને ઓડિયો પુરાવાઓને PIN અને બાયોમેટ્રિક ફિંગરપ્રિન્ટ લોક સાથે ફોનની ગેલેરીથી સંપૂર્ણ સુરક્ષિત રાખો.",
+                "private_vault"
+            ),
+            Triple(
+                "🎙️ નવું ફીચર: AI ફરિયાદ લેખક અને અવાજ દ્વારા નોંધણી",
+                "તમારી આપવીતી બોલીને કે સાદી ભાષામાં લખો - AI આપોઆપ ભારતીય ન્યાય સંહિતા (BNS) ની કલમો સાથે કાયદેસરની પોલીસ ફરિયાદ તૈયાર કરી આપશે.",
+                "complaint_categories"
+            ),
+            Triple(
+                "📍 નવું ફીચર: જીપીએસ આધારિત નજીકના પોલીસ મથકો અને હોસ્પિટલો",
+                "તમારા વર્તમાન લોકેશનની આસપાસ આવેલા મહિલા પોલીસ મથકો, હોસ્પિટલો અને સેલ્ટર હોમ્સનું અંતર અને 1-ટેપ ડાયલિંગ સુવિધા.",
+                "help_near_me"
+            )
+        )
+
+        val item = featureUpdates[featureSimIndex % featureUpdates.size]
+        featureSimIndex++
+        broadcastAppFeatureNotification(
+            title = item.first,
+            versionTag = "v2.${5 + (featureSimIndex % 5)}.0 નવું ફીચર",
+            details = item.second,
+            targetRoute = item.third
+        )
+    }
+
     suspend fun seedSampleNotificationsIfEmpty() = withContext(Dispatchers.IO) {
         val existing = notificationDao.getAllNotifications().first()
         if (existing.isEmpty()) {
             val sampleCaseId = "DURGA-2026-784291"
             val sampleNotifications = listOf(
+                // 1. App Feature Announcement Notification (New Feature)
+                CaseNotificationEntity(
+                    caseId = "APP-FEAT-2026",
+                    title = "✨ નવું ફીચર: લાઈવ પોલીસ કાર્યવાહી અને તપાસ ટ્રેકિંગ (Live Police Action Tracking)",
+                    category = "APP_FEATURE",
+                    progressPercent = 100,
+                    stageTitle = "v2.5.0 નવીનતમ અપડેટ (Latest Release)",
+                    isActionTaken = true,
+                    actionStatusText = "નવું ફીચર સક્રિય (Active)",
+                    actionDetails = "DURGA એપમાં કોઈપણ ફરિયાદ પર કેટલા ટકા કામ પૂર્ણ થયું અને પોલીસે શું ચોક્કસ પગલાં લીધા (જેમ કે નોટિસ, તપાસ, પેટ્રોલિંગ) તે હવે સીધા તમારા મોબાઈલ નોટિફિકેશન અને એપમાં રીઅલ-ટાઇમ દેખાશે.",
+                    officerName = "DURGA Safety Team",
+                    policeStation = "મહિલા સુરક્ષા & તકનીકી શાખા",
+                    fullSummary = "New live case tracking and police action notification feature released.",
+                    isRead = false,
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 15),
+                    notificationType = "APP_FEATURE",
+                    targetRoute = "case_notifications"
+                ),
+                // 2. Official Web Portals App Feature Notification
+                CaseNotificationEntity(
+                    caseId = "APP-PORTAL-2026",
+                    title = "🌐 નવું ફીચર: સત્તાવાર સરકારી પોર્ટલ્સ અને સાયબર સેલ લિંક્સ",
+                    category = "APP_FEATURE",
+                    progressPercent = 100,
+                    stageTitle = "v2.4.0 ફીચર અપડેટ",
+                    isActionTaken = true,
+                    actionStatusText = "વેબ સેવાઓ સક્રિય",
+                    actionDetails = "નેશનલ સાયબર ક્રાઈમ પોર્ટલ, NCW મહિલા આયોગ, 181 અભયમ હેલ્પલાઈન અને કાનૂની સહાયતાના સત્તાવાર સરકારી પોર્ટલ હવે એક ક્લિકમાં ઉપલબ્ધ છે.",
+                    officerName = "DURGA Web Integration",
+                    policeStation = "ગવર્નમેન્ટ પોર્ટલ કનેક્ટ",
+                    fullSummary = "Official government women safety portals integrated.",
+                    isRead = true,
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 90),
+                    notificationType = "APP_FEATURE",
+                    targetRoute = "web_portals"
+                ),
+                // 3. Realistic Investigation Progress: 90% Action Taken
                 CaseNotificationEntity(
                     caseId = sampleCaseId,
                     title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
@@ -504,8 +610,11 @@ class DurgaRepository(private val context: Context) {
                     policeStation = "મહિલા સાયબર ક્રાઈમ સેલ, પશ્ચિમ ડિવિઝન",
                     fullSummary = "Police action completed with notice issued and security patrolling assigned.",
                     isRead = false,
-                    timestamp = System.currentTimeMillis() - (1000 * 60 * 35)
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 35),
+                    notificationType = "CASE_UPDATE",
+                    targetRoute = "case_details"
                 ),
+                // 4. Investigation Progress: 70% Evidence Verified
                 CaseNotificationEntity(
                     caseId = sampleCaseId,
                     title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
@@ -519,8 +628,11 @@ class DurgaRepository(private val context: Context) {
                     policeStation = "સાયબર સેલ ટેકનિકલ શાખા",
                     fullSummary = "IP and CDR evidence analyzed successfully.",
                     isRead = true,
-                    timestamp = System.currentTimeMillis() - (1000 * 60 * 120)
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 120),
+                    notificationType = "CASE_UPDATE",
+                    targetRoute = "case_details"
                 ),
+                // 5. Investigation Progress: 45% Officer Assigned
                 CaseNotificationEntity(
                     caseId = sampleCaseId,
                     title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
@@ -534,8 +646,11 @@ class DurgaRepository(private val context: Context) {
                     policeStation = "કેન્દ્રીય મહિલા સુરક્ષા કમાન્ડ",
                     fullSummary = "Assigned to investigating officer.",
                     isRead = true,
-                    timestamp = System.currentTimeMillis() - (1000 * 60 * 300)
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 300),
+                    notificationType = "CASE_UPDATE",
+                    targetRoute = "case_details"
                 ),
+                // 6. Investigation Progress: 20% Initial Filing
                 CaseNotificationEntity(
                     caseId = sampleCaseId,
                     title = "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
@@ -549,7 +664,9 @@ class DurgaRepository(private val context: Context) {
                     policeStation = "DURGA કંટ્રોલ રૂમ",
                     fullSummary = "Initial filing confirmed.",
                     isRead = true,
-                    timestamp = System.currentTimeMillis() - (1000 * 60 * 600)
+                    timestamp = System.currentTimeMillis() - (1000 * 60 * 600),
+                    notificationType = "CASE_UPDATE",
+                    targetRoute = "case_details"
                 )
             )
             notificationDao.insertNotifications(sampleNotifications)

@@ -114,6 +114,8 @@ fun MyCasesScreen(
     onNavigateToNotifications: () -> Unit = {},
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onNavigate: ((String) -> Unit)? = null,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -135,7 +137,8 @@ fun MyCasesScreen(
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
                 onQuickExit = onQuickExit,
-                onOpenNotifications = onNavigateToNotifications
+                onOpenNotifications = onNavigateToNotifications,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         bottomBar = {
@@ -143,7 +146,11 @@ fun MyCasesScreen(
                 currentRoute = "cases",
                 currentLanguage = currentLanguage,
                 onNavigate = { route ->
-                    if (route == "home") onBack()
+                    if (onNavigate != null) {
+                        onNavigate(route)
+                    } else if (route == "home") {
+                        onBack()
+                    }
                 }
             )
         },
@@ -380,6 +387,7 @@ fun CaseDetailsScreen(
     onNavigateToNotifications: () -> Unit = {},
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val caseId = caseEntity?.caseId ?: "Record"
@@ -393,7 +401,8 @@ fun CaseDetailsScreen(
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
                 onQuickExit = onQuickExit,
-                onOpenNotifications = onNavigateToNotifications
+                onOpenNotifications = onNavigateToNotifications,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = DurgaBackgroundLight,
@@ -651,6 +660,7 @@ fun PrivateVaultScreen(
     onQuickExit: () -> Unit,
     onOpenSettings: (() -> Unit)? = null,
     onNavigate: (String) -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -672,7 +682,8 @@ fun PrivateVaultScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         bottomBar = {
@@ -1631,6 +1642,7 @@ fun WitnessReportScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1643,7 +1655,8 @@ fun WitnessReportScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = DurgaBackgroundLight,

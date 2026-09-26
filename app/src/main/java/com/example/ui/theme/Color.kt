@@ -3,18 +3,26 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // DURGA Real Safety Color System - Clean Light Government & Healthcare Inspired Theme
-val DurgaPrimaryNavy = Color(0xFF172033)
-val DurgaNavyLight = Color(0xFF2E3D59)
+val DurgaPrimaryNavy = Color(0xFF0F172A)
+val DurgaNavyLight = Color(0xFF1E293B)
+val DurgaDeepMidnight = Color(0xFF0A192F)
 
-val DurgaBackgroundLight = Color(0xFFF7F8FA)
+val DurgaRoyalBlue = Color(0xFF1D4ED8)
+val DurgaRoyalBlueLight = Color(0xFFEFF6FF)
+val DurgaRoseAccent = Color(0xFFBE185D)
+val DurgaRosePower = Color(0xFFD946EF)
+val DurgaLavenderSoft = Color(0xFFFDF2F8)
+val DurgaLavenderBorder = Color(0xFFFCE7F3)
+
+val DurgaBackgroundLight = Color(0xFFF8FAFC)
 val DurgaSurfaceWhite = Color(0xFFFFFFFF)
-val DurgaSectionSoft = Color(0xFFF0F2F5)
-val DurgaBorderLight = Color(0xFFE4E7EC)
-val DurgaBorderSubtle = Color(0xFFF2F4F7)
+val DurgaSectionSoft = Color(0xFFF1F5F9)
+val DurgaBorderLight = Color(0xFFE2E8F0)
+val DurgaBorderSubtle = Color(0xFFF1F5F9)
 
-val DurgaTextNavy = Color(0xFF172033)
-val DurgaTextSecondaryMuted = Color(0xFF667085)
-val DurgaTextLightMuted = Color(0xFF98A2B3)
+val DurgaTextNavy = Color(0xFF0F172A)
+val DurgaTextSecondaryMuted = Color(0xFF475569)
+val DurgaTextLightMuted = Color(0xFF94A3B8)
 
 // Red strictly for Emergency
 val DurgaEmergencyRed = Color(0xFFD92D20)

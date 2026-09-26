@@ -3,7 +3,12 @@ package com.example.durga.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,22 +26,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChildCare
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.GpsFixed
@@ -46,22 +43,14 @@ import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Work
-import androidx.compose.material3.LinearProgressIndicator
-import com.example.durga.model.CaseNotificationEntity
-import com.example.durga.model.IncidentCategory
-import com.example.durga.ui.components.ThemeSelectionDialog
-import com.example.ui.theme.DurgaThemeMode
-import com.example.ui.theme.LocalDurgaColors
-import com.example.ui.theme.LocalDurgaThemeMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -69,9 +58,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -80,7 +69,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -100,13 +89,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.durga.i18n.DurgaLanguage
 import com.example.durga.i18n.DurgaStrings
+import com.example.durga.model.CaseNotificationEntity
+import com.example.durga.model.IncidentCategory
 import com.example.durga.ui.components.DurgaBottomNav
-import com.example.durga.ui.components.DurgaCard
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.durga.ui.components.EmergencyCallCard
-import com.example.ui.theme.DurgaBackgroundLight
-import com.example.ui.theme.DurgaBlueAction
-import com.example.ui.theme.DurgaBlueLightBg
+import com.example.durga.ui.components.ThemeSelectionDialog
 import com.example.ui.theme.DurgaBorderLight
 import com.example.ui.theme.DurgaBorderSubtle
 import com.example.ui.theme.DurgaEmergencyRed
@@ -120,10 +108,12 @@ import com.example.ui.theme.DurgaSurfaceWhite
 import com.example.ui.theme.DurgaTextLightMuted
 import com.example.ui.theme.DurgaTextNavy
 import com.example.ui.theme.DurgaTextSecondaryMuted
+import com.example.ui.theme.DurgaThemeMode
 import com.example.ui.theme.DurgaWarning
 import com.example.ui.theme.DurgaWarningLight
+import com.example.ui.theme.LocalDurgaColors
+import com.example.ui.theme.LocalDurgaThemeMode
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 data class QuickActionItem(
     val id: String,
@@ -155,6 +145,7 @@ fun HomeScreen(
     onQuickExit: () -> Unit,
     onThemeChange: (DurgaThemeMode) -> Unit = {},
     onStartCategoryComplaint: ((IncidentCategory) -> Unit)? = null,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -163,7 +154,6 @@ fun HomeScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var sosHoldProgress by remember { mutableFloatStateOf(0f) }
     var isHoldingSos by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
     val colors = LocalDurgaColors.current
     val currentTheme = LocalDurgaThemeMode.current
 
@@ -207,6 +197,27 @@ fun HomeScreen(
         } catch (_: Exception) {}
     }
 
+    // Subtle gentle pulse animation for the SOS emergency action (calm, reassuring, not frantic)
+    val infiniteTransition = rememberInfiniteTransition(label = "sos_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.07f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
+    )
+
     Scaffold(
         topBar = {
             DurgaTopBar(
@@ -216,6 +227,7 @@ fun HomeScreen(
                 onLanguageChange = onLanguageChange,
                 onQuickExit = onQuickExit,
                 onOpenNotifications = onNavigateToNotifications,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher,
                 unreadNotificationCount = unreadNotificationCount,
                 onToggleAccessibility = { isAccessibilityLargeText = !isAccessibilityLargeText }
             )
@@ -247,146 +259,362 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Simple Greeting & Preparedness Status
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 2.dp)
-                ) {
-                    Text(
-                        text = DurgaStrings.get("greeting_headline", currentLanguage),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = DurgaTextNavy,
-                            fontSize = if (isAccessibilityLargeText) 22.sp else 19.sp
-                        )
-                    )
-                    Text(
-                        text = DurgaStrings.get("greeting_sub", currentLanguage),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = DurgaTextSecondaryMuted,
-                            fontSize = if (isAccessibilityLargeText) 15.sp else 13.sp
-                        )
-                    )
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Safety Status Summary Card
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Safe",
-                                    tint = DurgaSuccessGreen,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = DurgaStrings.get("status_emergency_ready", currentLanguage),
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextNavy,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 12.sp
-                                    )
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(DurgaSuccessGreen, CircleShape)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = DurgaStrings.get("status_offline_ready", currentLanguage),
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = colors.textSecondary,
-                                        fontSize = 11.sp
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 1.5. REAL-TIME CASE PROGRESSION & POLICE ACTION NOTIFICATIONS BANNER
+            // ==============================================================
+            // 1. PERSONAL SAFETY STATUS HEADER (Calm, Reassuring, Empowering)
+            // ==============================================================
             item {
                 Card(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = colors.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToNotifications() }
-                        .testTag("home_case_tracker_banner")
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Brush.horizontalGradient(
+                            listOf(
+                                colors.primary.copy(alpha = 0.3f),
+                                colors.accentRose.copy(alpha = 0.2f),
+                                colors.outline.copy(alpha = 0.5f)
+                            )
+                        )
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 16.dp)
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "તમારી સુરક્ષા, તમારી શક્તિ."
+                                        DurgaLanguage.HINDI -> "आपकी सुरक्षा, आपकी शक्ति।"
+                                        else -> "Your Safety, Your Strength."
+                                    },
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                        fontSize = if (isAccessibilityLargeText) 22.sp else 19.sp,
+                                        letterSpacing = (-0.2).sp
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(DurgaSuccessGreen, CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(7.dp))
+                                    Text(
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "સુરક્ષા સ્થિતિ સક્રિય (24x7 રક્ષા કવચ)"
+                                            DurgaLanguage.HINDI -> "सुरक्षा स्थिति सक्रिय (24x7 रक्षा कवच)"
+                                            else -> "Safety Status Active (24x7 Guardian Shield)"
+                                        },
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = DurgaSuccessGreen,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 12.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            // Protective shield icon
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.primaryContainer.copy(alpha = 0.8f))
+                                    .border(1.dp, colors.primary.copy(alpha = 0.3f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Shield,
+                                    contentDescription = "Shield",
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = colors.outline.copy(alpha = 0.4f), thickness = 0.5.dp)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Reassuring status pills
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            StatusBadgePill(
+                                label = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "ઓફલાઇન તૈયાર"
+                                    DurgaLanguage.HINDI -> "ऑफ़लाइन तैयार"
+                                    else -> "Offline Ready"
+                                },
+                                icon = Icons.Default.CheckCircle,
+                                tint = DurgaSuccessGreen,
+                                bg = DurgaSuccessLight,
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatusBadgePill(
+                                label = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "GPS લોકેશન સક્રિય"
+                                    DurgaLanguage.HINDI -> "GPS लोकेशन सक्रिय"
+                                    else -> "GPS Live Ready"
+                                },
+                                icon = Icons.Default.GpsFixed,
+                                tint = colors.primary,
+                                bg = colors.primaryContainer.copy(alpha = 0.6f),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ==============================================================
+            // 2. MAIN EMERGENCY ACTION (Visually Dominant, One-Hand Reachable)
+            // ==============================================================
+            item {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.5.dp,
+                        Color(0xFFFCA5A5).copy(alpha = 0.8f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .background(colors.primaryContainer, RoundedCornerShape(8.dp)),
+                                        .size(32.dp)
+                                        .background(DurgaEmergencyRedLight, RoundedCornerShape(8.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Notifications,
+                                        imageVector = Icons.Default.Call,
                                         contentDescription = null,
-                                        tint = colors.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        tint = DurgaEmergencyRed,
+                                        modifier = Modifier.size(17.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
                                         text = when (currentLanguage) {
-                                            DurgaLanguage.GUJARATI -> "પોલીસ કાર્યવાહી & કેસ અપડેટ્સ"
-                                            DurgaLanguage.HINDI -> "पुलिस कार्रवाई एवं केस अपडेट"
-                                            else -> "Police Actions & Case Updates"
+                                            DurgaLanguage.GUJARATI -> "આપાતકાલીન સહાય (SOS)"
+                                            DurgaLanguage.HINDI -> "आपातकालीन सहायता (SOS)"
+                                            else -> "Emergency Help (SOS)"
                                         },
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = colors.textPrimary,
-                                            fontSize = 15.sp
+                                            color = DurgaEmergencyRedDark,
+                                            fontSize = if (isAccessibilityLargeText) 18.sp else 16.sp
                                         )
                                     )
                                     Text(
-                                        text = when (currentLanguage) {
-                                            DurgaLanguage.GUJARATI -> "ફરિયાદ પર થયેલ કામ અને પગલાંની સૂચના"
-                                            DurgaLanguage.HINDI -> "शिकायत पर हुई कार्रवाई और प्रगति की सूचना"
-                                            else -> "Work progress & police action notifications"
-                                        },
+                                        text = "National 112 & Location Alert",
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            color = colors.textSecondary,
+                                            color = DurgaTextSecondaryMuted,
                                             fontSize = 11.sp
                                         )
                                     )
                                 }
                             }
 
+                            Box(
+                                modifier = Modifier
+                                    .background(DurgaEmergencyRedLight, RoundedCornerShape(6.dp))
+                                    .border(0.5.dp, DurgaEmergencyRed.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "24x7 ACTIVE",
+                                    color = DurgaEmergencyRed,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Large Circular SOS Button with gentle protective breathing ring
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(136.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            isHoldingSos = true
+                                            tryAwaitRelease()
+                                            isHoldingSos = false
+                                        },
+                                        onTap = {
+                                            onNavigateToEmergency()
+                                        }
+                                    )
+                                }
+                                .testTag("sos_button")
+                        ) {
+                            // Outer subtle breathing halo
+                            Box(
+                                modifier = Modifier
+                                    .size((124 * pulseScale).dp)
+                                    .clip(CircleShape)
+                                    .background(DurgaEmergencyRed.copy(alpha = pulseAlpha))
+                            )
+
+                            // Circular Hold Progress Ring
+                            if (sosHoldProgress > 0f) {
+                                CircularProgressIndicator(
+                                    progress = { sosHoldProgress },
+                                    modifier = Modifier.size(132.dp),
+                                    color = DurgaEmergencyRedDark,
+                                    strokeWidth = 6.dp,
+                                    trackColor = DurgaEmergencyRedLight
+                                )
+                            }
+
+                            // Main SOS Circle
+                            Box(
+                                modifier = Modifier
+                                    .size(118.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                DurgaEmergencyRed,
+                                                DurgaEmergencyRedDark
+                                            )
+                                        )
+                                    )
+                                    .border(2.dp, Color.White.copy(alpha = 0.4f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = "SOS",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "SOS",
+                                        style = MaterialTheme.typography.headlineMedium.copy(
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 24.sp,
+                                            letterSpacing = 2.sp
+                                        )
+                                    )
+                                    Text(
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "આપાતકાલીન"
+                                            DurgaLanguage.HINDI -> "आपातकालीन"
+                                            else -> "EMERGENCY"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = Color.White.copy(alpha = 0.9f),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 9.sp
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = when (currentLanguage) {
+                                DurgaLanguage.GUJARATI -> "૩ સેકન્ડ દબાવી રાખો (Hold 3s) • સીધો કોલ કરવા ટેપ કરો"
+                                DurgaLanguage.HINDI -> "३ सेकंड दबाकर रखें (Hold 3s) • सीधा कॉल करने के लिए टैप करें"
+                                else -> "Hold 3s to Trigger SOS • Tap once to open 112"
+                            },
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = DurgaEmergencyRedDark,
+                                fontSize = if (isAccessibilityLargeText) 14.sp else 12.sp
+                            ),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            // ==============================================================
+            // 3. ACTIVE CASE / REQUEST CARD (Compact Premium "Case Status")
+            // ==============================================================
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, colors.outline.copy(alpha = 0.8f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToNotifications() }
+                        .testTag("home_case_tracker_banner")
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        // Micro-label & Case ID Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "CASE STATUS",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Black,
+                                        color = colors.primary,
+                                        letterSpacing = 1.sp,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "•  ${latestNotification?.caseId ?: "DURGA-2026-784291"}",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            }
+
                             if (unreadNotificationCount > 0) {
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFE53935), RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFE11D48), RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
                                     Text(
@@ -396,93 +624,126 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
+                            } else {
+                                Text(
+                                    text = "છેલ્લો અપડેટ: ૧૨ મિનિટ પહેલાં",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = colors.textSecondary,
+                                        fontSize = 10.5.sp
+                                    )
+                                )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        if (latestNotification != null) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "કેસ: ${latestNotification.caseId}",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.primary,
-                                        fontSize = 12.sp
-                                    )
+                        // Case Title
+                        Text(
+                            text = latestNotification?.title
+                                ?: "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                fontSize = if (isAccessibilityLargeText) 17.sp else 15.sp
+                            ),
+                            maxLines = 1
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Progress Indicator Row
+                        val progressPercent = latestNotification?.progressPercent ?: 90
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .background(
+                                            if (progressPercent >= 90) DurgaSuccessGreen else colors.primary,
+                                            CircleShape
+                                        )
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "${latestNotification.progressPercent}% કામ પૂર્ણ",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (latestNotification.progressPercent >= 90) Color(0xFF2E7D32) else colors.primary,
-                                        fontSize = 12.sp
-                                    )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            LinearProgressIndicator(
-                                progress = { latestNotification.progressPercent / 100f },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(6.dp)
-                                    .clip(RoundedCornerShape(3.dp)),
-                                color = if (latestNotification.progressPercent >= 90) Color(0xFF2E7D32) else colors.primary,
-                                trackColor = colors.outline.copy(alpha = 0.3f),
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        if (latestNotification.isActionTaken) Color(0xFFE8F5E9) else Color(0xFFFFF8E1),
-                                        RoundedCornerShape(6.dp)
-                                    )
-                                    .border(
-                                        0.5.dp,
-                                        if (latestNotification.isActionTaken) Color(0xFF2E7D32) else Color(0xFFF57F17),
-                                        RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 5.dp)
-                            ) {
-                                Text(
-                                    text = if (latestNotification.isActionTaken) {
-                                        "✅ પોલીસ કાર્યવાહી: ${latestNotification.actionDetails.take(70)}..."
+                                    text = if (latestNotification?.isActionTaken == true || progressPercent >= 90) {
+                                        when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "પોલીસ કાર્યવાહી શરૂ"
+                                            DurgaLanguage.HINDI -> "पुलिस कार्रवाई शुरू"
+                                            else -> "Police Action In Progress"
+                                        }
                                     } else {
-                                        "⏳ તપાસ ચાલુ: ${latestNotification.actionDetails.take(70)}..."
+                                        when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "તપાસ પ્રગતિમાં"
+                                            DurgaLanguage.HINDI -> "जांच जारी"
+                                            else -> "Investigation In Progress"
+                                        }
                                     },
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = if (latestNotification.isActionTaken) Color(0xFF1B5E20) else Color(0xFFE65100),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    maxLines = 2
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (progressPercent >= 90) DurgaSuccessGreen else colors.primary,
+                                        fontSize = 12.sp
+                                    )
                                 )
                             }
-                        } else {
+
                             Text(
-                                text = when (currentLanguage) {
-                                    DurgaLanguage.GUJARATI -> "તમારી કોઈપણ ફરિયાદ દાખલ કરો ત્યારે તેનું કામ કેટલું થયું અને પોલીસે શું પગલાં લીધા તેની લાઈવ સૂચના અહીં મળશે."
-                                    DurgaLanguage.HINDI -> "शिकायत दर्ज होने पर जांच का कार्य कितना हुआ और पुलिस ने क्या कार्रवाई की, उसकी सूचना यहाँ मिलेगी।"
-                                    else -> "Track case stages, work progress %, and police actions taken in real time."
-                                },
-                                style = MaterialTheme.typography.bodySmall.copy(
+                                text = "$progressPercent% પ્રક્રિયા પૂર્ણ",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary,
-                                    fontSize = 12.sp
+                                    fontSize = 11.5.sp
                                 )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(7.dp))
+
+                        LinearProgressIndicator(
+                            progress = { progressPercent / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = if (progressPercent >= 90) DurgaSuccessGreen else colors.primary,
+                            trackColor = colors.outline.copy(alpha = 0.3f),
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Action Note Box
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (progressPercent >= 90) Color(0xFFECFDF5) else colors.primaryContainer.copy(alpha = 0.4f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .border(
+                                    0.5.dp,
+                                    if (progressPercent >= 90) Color(0xFFA7F3D0) else colors.outline,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = latestNotification?.actionDetails
+                                    ?: "પોલીસ અધિકારી દ્વારા સ્થળ નિરીક્ષણ અને પુરાવાઓની ચકાસણી પૂર્ણ. સુરક્ષા નોટિસ જારી.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (progressPercent >= 90) Color(0xFF065F46) else colors.textPrimary,
+                                    fontSize = 11.5.sp,
+                                    lineHeight = 16.sp
+                                ),
+                                maxLines = 2
                             )
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
+                        // Next Action Link
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End,
@@ -490,9 +751,9 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = when (currentLanguage) {
-                                    DurgaLanguage.GUJARATI -> "સૂચનાઓ અને પ્રગતિ જુઓ →"
-                                    DurgaLanguage.HINDI -> "सूचनाएं एवं प्रगति देखें →"
-                                    else -> "View Notifications & Progress →"
+                                    DurgaLanguage.GUJARATI -> "તપાસ પ્રગતિ અને વિગતો જુઓ →"
+                                    DurgaLanguage.HINDI -> "जांच प्रगति एवं विवरण देखें →"
+                                    else -> "View Investigation Progress →"
                                 },
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
@@ -505,13 +766,15 @@ fun HomeScreen(
                 }
             }
 
-            // HERO INCIDENT & COMPLAINT REGISTRATION SECTION (Prominent Official Complaint Feature)
+            // ==============================================================
+            // 4. COMPLAINT SECTION (Major Action Panel)
+            // ==============================================================
             item {
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = colors.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.primary),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, colors.primary.copy(alpha = 0.4f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("hero_complaint_card")
@@ -521,6 +784,7 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .padding(18.dp)
                     ) {
+                        // Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -530,7 +794,7 @@ fun HomeScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(38.dp)
-                                        .background(colors.primaryContainer, RoundedCornerShape(8.dp)),
+                                        .background(colors.primaryContainer, RoundedCornerShape(10.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -543,25 +807,33 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = DurgaStrings.get("file_complaint_now", currentLanguage),
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "ફરિયાદ નોંધાવો"
+                                            DurgaLanguage.HINDI -> "शिकायत दर्ज करें"
+                                            else -> "File a Complaint"
+                                        },
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary,
-                                            fontSize = 17.sp
+                                            fontSize = if (isAccessibilityLargeText) 19.sp else 17.sp
                                         )
                                     )
                                     Text(
-                                        text = DurgaStrings.get("complaint_feature_headline", currentLanguage),
+                                        text = when (currentLanguage) {
+                                            DurgaLanguage.GUJARATI -> "તમારી વાત સરળ રીતે લખો અને સુરક્ષિત રીતે સાચવો."
+                                            DurgaLanguage.HINDI -> "अपनी बात सरल तरीके से लिखें और सुरक्षित रखें।"
+                                            else -> "Write your statement easily and store securely."
+                                        },
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary,
-                                            fontSize = 11.sp
+                                            fontSize = 11.5.sp
                                         )
                                     )
                                 }
                             }
 
                             Text(
-                                text = DurgaStrings.get("private_badge", currentLanguage),
+                                text = "100% PRIVATE",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = DurgaSuccessGreen,
                                     fontWeight = FontWeight.Bold,
@@ -573,58 +845,53 @@ fun HomeScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = DurgaStrings.get("complaint_feature_desc", currentLanguage),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = colors.textSecondary,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp
-                            )
-                        )
-
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Large Start Complaint Button
+                        // Primary Action Button (+ Start New Complaint)
                         Button(
                             onClick = onNavigateToComplaintCategories,
                             colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
+                                .height(50.dp)
                                 .testTag("start_complaint_button")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.EditNote,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = DurgaStrings.get("start_complaint_btn", currentLanguage),
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.EditNote,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "+ નવી ફરિયાદ શરૂ કરો"
+                                        DurgaLanguage.HINDI -> "+ नई शिकायत शुरू करें"
+                                        else -> "+ Start New Complaint"
+                                    },
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // Quick incident category pills
+                        // Direct Categories Heading
                         Text(
-                            text = DurgaStrings.get("direct_categories", currentLanguage),
+                            text = when (currentLanguage) {
+                                DurgaLanguage.GUJARATI -> "સીધી કેટેગરી પસંદ કરો:"
+                                DurgaLanguage.HINDI -> "सीधे श्रेणी चुनें:"
+                                else -> "Quick Complaint Categories:"
+                            },
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textSecondary,
@@ -632,15 +899,15 @@ fun HomeScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
+                        // Category Chips (Row 1)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val pillModifier = Modifier.weight(1f)
-                            CategoryQuickChip(
-                                label = DurgaStrings.get("category_cyber", currentLanguage),
+                            CleanCategoryChip(
+                                label = "Cyber / Online",
                                 icon = Icons.Default.PhoneAndroid,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -649,10 +916,10 @@ fun HomeScreen(
                                         onNavigateToComplaintCategories()
                                     }
                                 },
-                                modifier = pillModifier
+                                modifier = Modifier.weight(1f)
                             )
-                            CategoryQuickChip(
-                                label = DurgaStrings.get("category_domestic", currentLanguage),
+                            CleanCategoryChip(
+                                label = "Home / Family",
                                 icon = Icons.Default.Home,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -661,31 +928,31 @@ fun HomeScreen(
                                         onNavigateToComplaintCategories()
                                     }
                                 },
-                                modifier = pillModifier
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
+                        // Category Chips (Row 2)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val pillModifier = Modifier.weight(1f)
-                            CategoryQuickChip(
-                                label = DurgaStrings.get("category_workplace", currentLanguage),
-                                icon = Icons.Default.Work,
+                            CleanCategoryChip(
+                                label = "College / School",
+                                icon = Icons.Default.School,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
-                                        onStartCategoryComplaint(IncidentCategory.WORKPLACE)
+                                        onStartCategoryComplaint(IncidentCategory.SCHOOL_COLLEGE)
                                     } else {
                                         onNavigateToComplaintCategories()
                                     }
                                 },
-                                modifier = pillModifier
+                                modifier = Modifier.weight(1f)
                             )
-                            CategoryQuickChip(
-                                label = DurgaStrings.get("category_public", currentLanguage),
+                            CleanCategoryChip(
+                                label = "Public Place",
                                 icon = Icons.Default.LocationCity,
                                 onClick = {
                                     if (onStartCategoryComplaint != null) {
@@ -694,20 +961,53 @@ fun HomeScreen(
                                         onNavigateToComplaintCategories()
                                     }
                                 },
-                                modifier = pillModifier
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Category Chips (Row 3)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CleanCategoryChip(
+                                label = "Workplace",
+                                icon = Icons.Default.Work,
+                                onClick = {
+                                    if (onStartCategoryComplaint != null) {
+                                        onStartCategoryComplaint(IncidentCategory.WORKPLACE)
+                                    } else {
+                                        onNavigateToComplaintCategories()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            CleanCategoryChip(
+                                label = "Child / Family",
+                                icon = Icons.Default.WarningAmber,
+                                onClick = {
+                                    if (onStartCategoryComplaint != null) {
+                                        onStartCategoryComplaint(IncidentCategory.CHILD_SAFETY)
+                                    } else {
+                                        onNavigateToComplaintCategories()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         // Secondary action: Track My Cases
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onNavigateToMyCases() }
-                                .background(colors.surfaceVariant, RoundedCornerShape(8.dp))
-                                .border(1.dp, colors.outline, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .background(colors.surfaceVariant, RoundedCornerShape(10.dp))
+                                .border(1.dp, colors.outline.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -718,7 +1018,7 @@ fun HomeScreen(
                                     tint = colors.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = DurgaStrings.get("track_existing_cases", currentLanguage),
                                     style = MaterialTheme.typography.bodySmall.copy(
@@ -739,142 +1039,9 @@ fun HomeScreen(
                 }
             }
 
-            // 2. PRIMARY EMERGENCY SECTION - Large Prominent SOS Card
-            item {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, DurgaEmergencyRed.copy(alpha = 0.5f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(
-                                    text = DurgaStrings.get("sos_card_title", currentLanguage),
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = DurgaEmergencyRedDark,
-                                        fontSize = if (isAccessibilityLargeText) 20.sp else 17.sp
-                                    )
-                                )
-                                Text(
-                                    text = "National Emergency 112 & Location Alert",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextSecondaryMuted,
-                                        fontSize = 12.sp
-                                    )
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .background(DurgaEmergencyRedLight, RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = DurgaStrings.get("sos_active_badge", currentLanguage),
-                                    color = DurgaEmergencyRed,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Large Circular SOS Button (Clean, Non-gaming, Professional)
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(136.dp)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onPress = {
-                                            isHoldingSos = true
-                                            tryAwaitRelease()
-                                            isHoldingSos = false
-                                        },
-                                        onTap = {
-                                            // Fallback single tap opens emergency screen directly
-                                            onNavigateToEmergency()
-                                        }
-                                    )
-                                }
-                                .testTag("sos_button")
-                        ) {
-                            // Circular Hold Progress Indicator
-                            if (sosHoldProgress > 0f) {
-                                CircularProgressIndicator(
-                                    progress = { sosHoldProgress },
-                                    modifier = Modifier.size(136.dp),
-                                    color = DurgaEmergencyRedDark,
-                                    strokeWidth = 6.dp,
-                                    trackColor = DurgaEmergencyRedLight
-                                )
-                            }
-
-                            // Main SOS Circle
-                            Box(
-                                modifier = Modifier
-                                    .size(118.dp)
-                                    .clip(CircleShape)
-                                    .background(DurgaEmergencyRed),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.Shield,
-                                        contentDescription = "SOS",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(34.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = DurgaStrings.get("sos_button_label", currentLanguage),
-                                        style = MaterialTheme.typography.headlineMedium.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Black,
-                                            fontSize = 24.sp,
-                                            letterSpacing = 2.sp
-                                        )
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Text(
-                            text = DurgaStrings.get("sos_instruction", currentLanguage),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = DurgaEmergencyRed,
-                                fontSize = if (isAccessibilityLargeText) 15.sp else 13.sp
-                            )
-                        )
-                        Text(
-                            text = DurgaStrings.get("tap_once_directory", currentLanguage),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = DurgaTextLightMuted,
-                                fontSize = 11.sp
-                            )
-                        )
-                    }
-                }
-            }
-
-            // 3. QUICK EMERGENCY CONTACTS (Police, Ambulance, Women Helpline, Cybercrime)
+            // ==============================================================
+            // 5. QUICK ACTIONS ("QUICK HELP" AREA - Verified 24x7 Helplines)
+            // ==============================================================
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -885,17 +1052,21 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = DurgaStrings.get("emergency_contacts_title", currentLanguage),
+                            text = when (currentLanguage) {
+                                DurgaLanguage.GUJARATI -> "ઝડપી સહાય નંબરો (Quick Help)"
+                                DurgaLanguage.HINDI -> "त्वरित सहायता नंबर (Quick Help)"
+                                else -> "Quick Help & Helplines"
+                            },
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = DurgaTextNavy,
+                                color = colors.textPrimary,
                                 fontSize = if (isAccessibilityLargeText) 18.sp else 16.sp
                             )
                         )
                         Text(
                             text = DurgaStrings.get("view_all_contacts", currentLanguage),
                             style = MaterialTheme.typography.labelMedium.copy(
-                                color = DurgaBlueAction,
+                                color = colors.primary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
                             ),
@@ -905,8 +1076,9 @@ fun HomeScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
+                    // 4 Clean Verified Helplines
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         EmergencyCallCard(
                             number = "112",
@@ -916,35 +1088,38 @@ fun HomeScreen(
                         )
 
                         EmergencyCallCard(
+                            number = "1091",
+                            title = DurgaStrings.get("women_helpline_label", currentLanguage),
+                            subtitle = "Women in Distress & Abhayam 181",
+                            onCallClick = { dialNumber("1091") },
+                            badge = "WOMEN SAFETY"
+                        )
+
+                        EmergencyCallCard(
                             number = "108",
                             title = DurgaStrings.get("ambulance_label", currentLanguage),
-                            subtitle = "Free Ambulance & Immediate First Aid",
+                            subtitle = "Free Ambulance & Immediate Medical First Aid",
                             onCallClick = { dialNumber("108") }
                         )
 
                         EmergencyCallCard(
-                            number = "1091",
-                            title = DurgaStrings.get("women_helpline_label", currentLanguage),
-                            subtitle = "Women in Distress & Abhayam 181",
-                            onCallClick = { dialNumber("1091") }
-                        )
-
-                        EmergencyCallCard(
                             number = "1930",
-                            title = "Cyber Helpline (1930)",
-                            subtitle = "National Cybercrime & Digital Fraud Reporting",
+                            title = "Cybercrime Helpline (1930)",
+                            subtitle = "National Cyber Fraud & Online Abuse Reporting",
                             onCallClick = { dialNumber("1930") }
                         )
                     }
                 }
             }
 
-            // 4. "I NEED HELP" GUIDED SAFETY ASSISTANT CARD
+            // ==============================================================
+            // 6. "I NEED HELP" GUIDED ASSISTANT
+            // ==============================================================
             item {
                 Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBlueAction.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary.copy(alpha = 0.35f)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -954,7 +1129,7 @@ fun HomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(18.dp),
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -964,26 +1139,26 @@ fun HomeScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
-                                    .background(DurgaBlueLightBg, RoundedCornerShape(10.dp)),
+                                    .size(44.dp)
+                                    .background(colors.primaryContainer, RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.HelpOutline,
                                     contentDescription = "Help",
-                                    tint = DurgaBlueAction,
+                                    tint = colors.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(14.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
                             Column {
                                 Text(
                                     text = DurgaStrings.get("i_need_help_title", currentLanguage),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = DurgaTextNavy,
+                                        color = colors.textPrimary,
                                         fontSize = if (isAccessibilityLargeText) 17.sp else 15.sp
                                     )
                                 )
@@ -991,7 +1166,7 @@ fun HomeScreen(
                                 Text(
                                     text = DurgaStrings.get("i_need_help_sub", currentLanguage),
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextSecondaryMuted,
+                                        color = colors.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 )
@@ -1001,27 +1176,29 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Proceed",
-                            tint = DurgaBlueAction,
+                            tint = colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
 
-            // 5. QUICK ACTION GRID - 6 Clean Functional Cards (2-column layout)
+            // ==============================================================
+            // 7. QUICK TOOLS GRID (Location, Nearby, Vault)
+            // ==============================================================
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = DurgaStrings.get("quick_tools_title", currentLanguage),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = DurgaTextNavy,
+                            color = colors.textPrimary,
                             fontSize = if (isAccessibilityLargeText) 18.sp else 16.sp
                         ),
                         modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     val quickActions = listOf(
                         QuickActionItem(
@@ -1032,7 +1209,10 @@ fun HomeScreen(
                             routeAction = {
                                 val sendIntent: Intent = Intent().apply {
                                     action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "URGENT SAFETY: My live location alert via DURGA app. Lat: 23.0225, Lng: 72.5714. Please check on me.")
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "URGENT SAFETY: My live location alert via DURGA app. Lat: 23.0225, Lng: 72.5714. Please check on me."
+                                    )
                                     type = "text/plain"
                                 }
                                 context.startActivity(Intent.createChooser(sendIntent, "Share Location"))
@@ -1043,13 +1223,6 @@ fun HomeScreen(
                             title = DurgaStrings.get("qa_nearby_help", currentLanguage),
                             subtitle = DurgaStrings.get("qa_nearby_help_sub", currentLanguage),
                             icon = Icons.Default.NearMe,
-                            routeAction = onNavigateToHelpNearMe
-                        ),
-                        QuickActionItem(
-                            id = "safety_checklist",
-                            title = DurgaStrings.get("qa_safety_checklist", currentLanguage),
-                            subtitle = DurgaStrings.get("qa_safety_checklist_sub", currentLanguage),
-                            icon = Icons.Default.Checklist,
                             routeAction = onNavigateToHelpNearMe
                         ),
                         QuickActionItem(
@@ -1065,17 +1238,9 @@ fun HomeScreen(
                             subtitle = DurgaStrings.get("qa_evidence_lock_sub", currentLanguage),
                             icon = Icons.Default.Security,
                             routeAction = onNavigateToPrivateData
-                        ),
-                        QuickActionItem(
-                            id = "complaint_draft",
-                            title = DurgaStrings.get("qa_complaint_draft", currentLanguage),
-                            subtitle = DurgaStrings.get("qa_complaint_draft_sub", currentLanguage),
-                            icon = Icons.Default.EditNote,
-                            routeAction = onNavigateToComplaintCategories
                         )
                     )
 
-                    // 2-column layout with clean card items
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         for (i in quickActions.indices step 2) {
                             Row(
@@ -1105,16 +1270,18 @@ fun HomeScreen(
                 }
             }
 
-            // 6. Child Friendly Mode & Witness Incident
+            // ==============================================================
+            // 8. CHILD FRIENDLY MODE & WITNESS INCIDENT
+            // ==============================================================
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = colors.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline.copy(alpha = 0.7f)),
                         modifier = Modifier
                             .weight(1f)
                             .clickable(onClick = onNavigateToChildFriendly)
@@ -1143,14 +1310,14 @@ fun HomeScreen(
                                     text = DurgaStrings.get("child_friendly_mode", currentLanguage),
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = DurgaTextNavy,
+                                        color = colors.textPrimary,
                                         fontSize = 13.sp
                                     )
                                 )
                                 Text(
                                     text = "Childline 1098",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextSecondaryMuted,
+                                        color = colors.textSecondary,
                                         fontSize = 11.sp
                                     )
                                 )
@@ -1159,9 +1326,9 @@ fun HomeScreen(
                     }
 
                     Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = colors.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline.copy(alpha = 0.7f)),
                         modifier = Modifier
                             .weight(1f)
                             .clickable(onClick = onNavigateToWitness)
@@ -1190,14 +1357,14 @@ fun HomeScreen(
                                     text = "Witness Report",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = DurgaTextNavy,
+                                        color = colors.textPrimary,
                                         fontSize = 13.sp
                                     )
                                 )
                                 Text(
-                                    text = "Anonymous bystander",
+                                    text = "Safe & Anonymous",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = DurgaTextSecondaryMuted,
+                                        color = colors.textSecondary,
                                         fontSize = 11.sp
                                     )
                                 )
@@ -1207,12 +1374,14 @@ fun HomeScreen(
                 }
             }
 
-            // 7. Important Information & Official Help
+            // ==============================================================
+            // 9. IMPORTANT INFORMATION & OFFICIAL SAKHI / NALSA SUPPORT
+            // ==============================================================
             item {
                 Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline.copy(alpha = 0.7f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1225,7 +1394,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.VerifiedUser,
                                     contentDescription = "Official",
-                                    tint = DurgaPrimaryNavy,
+                                    tint = colors.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -1233,7 +1402,7 @@ fun HomeScreen(
                                     text = "Important Information",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = DurgaTextNavy,
+                                        color = colors.textPrimary,
                                         fontSize = 15.sp
                                     )
                                 )
@@ -1262,7 +1431,7 @@ fun HomeScreen(
 
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 10.dp),
-                            color = DurgaBorderSubtle
+                            color = colors.outline.copy(alpha = 0.5f)
                         )
 
                         OfficialInfoRow(
@@ -1273,7 +1442,7 @@ fun HomeScreen(
 
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 10.dp),
-                            color = DurgaBorderSubtle
+                            color = colors.outline.copy(alpha = 0.5f)
                         )
 
                         OfficialInfoRow(
@@ -1285,28 +1454,28 @@ fun HomeScreen(
                 }
             }
 
-            // 8. Official Police & Central Admin Portals Hub
+            // ==============================================================
+            // 10. OFFICIAL POLICE & CENTRAL ADMIN PORTALS HUB
+            // ==============================================================
             item {
                 Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline.copy(alpha = 0.7f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .background(DurgaPrimaryNavy, CircleShape),
+                                    .background(colors.primaryContainer, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AdminPanelSettings,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = colors.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1320,24 +1489,24 @@ fun HomeScreen(
                                     },
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = DurgaTextNavy
+                                        color = colors.textPrimary
                                     )
                                 )
                                 Text(
                                     text = when (currentLanguage) {
-                                        DurgaLanguage.GUJARATI -> "એપમાંથી સીધું જ ઓપન કરો (Direct connected, no redirect)"
-                                        DurgaLanguage.HINDI -> "ऐप से ही सीधा खोलें (Direct connected, no redirect)"
+                                        DurgaLanguage.GUJARATI -> "એપમાંથી સીધું જ ઓપન કરો (Direct in-app access)"
+                                        DurgaLanguage.HINDI -> "ऐप से ही सीधा खोलें (Direct in-app access)"
                                         DurgaLanguage.ENGLISH -> "Open directly inside app without browser redirects"
                                     },
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 11.sp,
-                                        color = DurgaTextSecondaryMuted
+                                        color = colors.textSecondary
                                     )
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1345,8 +1514,8 @@ fun HomeScreen(
                         ) {
                             Button(
                                 onClick = onNavigateToWebPortals,
-                                colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
-                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
                                     .weight(1.2f)
                                     .minimumInteractiveComponentSize()
@@ -1363,10 +1532,10 @@ fun HomeScreen(
                                 )
                             }
 
-                            Button(
+                            OutlinedButton(
                                 onClick = onNavigateToAuthorityPortal,
-                                colors = ButtonDefaults.buttonColors(containerColor = DurgaBackgroundLight),
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
                                 modifier = Modifier
                                     .weight(1f)
                                     .minimumInteractiveComponentSize()
@@ -1379,7 +1548,7 @@ fun HomeScreen(
                                     },
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = DurgaTextNavy
+                                    color = colors.textPrimary
                                 )
                             }
                         }
@@ -1397,7 +1566,7 @@ fun HomeScreen(
     if (showSosActiveDialog) {
         Dialog(onDismissRequest = { showSosActiveDialog = false }) {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
                 border = androidx.compose.foundation.BorderStroke(2.dp, DurgaEmergencyRed),
                 modifier = Modifier.fillMaxWidth()
@@ -1449,7 +1618,7 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(DurgaSectionSoft, RoundedCornerShape(8.dp))
+                            .background(DurgaSectionSoft, RoundedCornerShape(10.dp))
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -1497,7 +1666,7 @@ fun HomeScreen(
                         Button(
                             onClick = { showSosActiveDialog = false },
                             colors = ButtonDefaults.buttonColors(containerColor = DurgaBorderLight),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .weight(1f)
                                 .minimumInteractiveComponentSize()
@@ -1515,7 +1684,7 @@ fun HomeScreen(
                                 dialNumber("112")
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = DurgaEmergencyRed),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .weight(1f)
                                 .minimumInteractiveComponentSize()
@@ -1534,15 +1703,93 @@ fun HomeScreen(
 }
 
 @Composable
+private fun StatusBadgePill(
+    label: String,
+    icon: ImageVector,
+    tint: Color,
+    bg: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = bg,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = tint,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp
+                ),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun CleanCategoryChip(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = LocalDurgaColors.current
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = colors.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline.copy(alpha = 0.6f)),
+        modifier = modifier.minimumInteractiveComponentSize()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(17.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                ),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
 private fun QuickActionCard(
     item: QuickActionItem,
     isLarge: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalDurgaColors.current
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline.copy(alpha = 0.6f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         modifier = modifier
             .clickable(onClick = item.routeAction)
@@ -1561,13 +1808,13 @@ private fun QuickActionCard(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .background(DurgaSectionSoft, RoundedCornerShape(8.dp)),
+                        .background(colors.primaryContainer, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.title,
-                        tint = DurgaPrimaryNavy,
+                        tint = colors.primary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1575,8 +1822,8 @@ private fun QuickActionCard(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = DurgaTextLightMuted,
-                    modifier = Modifier.size(16.dp)
+                    tint = colors.textSecondary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
@@ -1586,7 +1833,7 @@ private fun QuickActionCard(
                 text = item.title,
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    color = DurgaTextNavy,
+                    color = colors.textPrimary,
                     fontSize = if (isLarge) 15.sp else 13.sp
                 ),
                 maxLines = 1
@@ -1595,7 +1842,7 @@ private fun QuickActionCard(
             Text(
                 text = item.subtitle,
                 style = MaterialTheme.typography.bodySmall.copy(
-                    color = DurgaTextSecondaryMuted,
+                    color = colors.textSecondary,
                     fontSize = 11.sp
                 ),
                 maxLines = 2
@@ -1611,6 +1858,7 @@ private fun OfficialInfoRow(
     number: String,
     onCall: () -> Unit
 ) {
+    val colors = LocalDurgaColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1621,14 +1869,14 @@ private fun OfficialInfoRow(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold,
-                    color = DurgaTextNavy,
+                    color = colors.textPrimary,
                     fontSize = 13.sp
                 )
             )
             Text(
                 text = desc,
                 style = MaterialTheme.typography.bodySmall.copy(
-                    color = DurgaTextSecondaryMuted,
+                    color = colors.textSecondary,
                     fontSize = 11.sp
                 )
             )
@@ -1638,22 +1886,22 @@ private fun OfficialInfoRow(
 
         Button(
             onClick = onCall,
-            colors = ButtonDefaults.buttonColors(containerColor = DurgaSectionSoft),
-            shape = RoundedCornerShape(6.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.surfaceVariant),
+            shape = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             modifier = Modifier.minimumInteractiveComponentSize()
         ) {
             Icon(
                 imageVector = Icons.Default.Call,
                 contentDescription = "Call $number",
-                tint = DurgaPrimaryNavy,
+                tint = colors.primary,
                 modifier = Modifier.size(14.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = number,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    color = DurgaPrimaryNavy,
+                    color = colors.primary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
@@ -1661,43 +1909,3 @@ private fun OfficialInfoRow(
         }
     }
 }
-
-@Composable
-private fun CategoryQuickChip(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = LocalDurgaColors.current
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = colors.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = colors.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp
-                ),
-                maxLines = 1
-            )
-        }
-    }
-}
-

@@ -96,6 +96,7 @@ import com.example.durga.model.CaseEntity
 import com.example.durga.model.CaseStatus
 import com.example.durga.model.NearbyPlace
 import com.example.durga.ui.components.AuthorityWatermark
+import com.example.durga.ui.components.DurgaBottomNav
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.DurgaBackgroundLight
 import com.example.ui.theme.DurgaBlueAction
@@ -124,6 +125,8 @@ fun HelpNearMeScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onNavigate: ((String) -> Unit)? = null,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -145,8 +148,18 @@ fun HelpNearMeScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
+        },
+        bottomBar = {
+            if (onNavigate != null) {
+                DurgaBottomNav(
+                    currentRoute = "vault",
+                    currentLanguage = currentLanguage,
+                    onNavigate = onNavigate
+                )
+            }
         },
         containerColor = DurgaBackgroundLight,
         modifier = modifier
@@ -340,6 +353,7 @@ fun IdkWhatToDoScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -374,7 +388,8 @@ fun IdkWhatToDoScreen(
                     }
                 },
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = DurgaBackgroundLight,
@@ -783,6 +798,7 @@ fun ChildFriendlyScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -793,7 +809,8 @@ fun ChildFriendlyScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = DurgaBackgroundLight,
@@ -977,6 +994,7 @@ fun PrivacyCenterScreen(
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
     onThemeChange: (DurgaThemeMode) -> Unit = {},
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isPrivacyModeOn by remember { mutableStateOf(true) }
@@ -996,7 +1014,8 @@ fun PrivacyCenterScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = colors.background,
@@ -1359,6 +1378,7 @@ fun AuthorityAdminDashboardScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var inputStaffId by remember { mutableStateOf("") }
@@ -1376,7 +1396,8 @@ fun AuthorityAdminDashboardScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         containerColor = DurgaBackgroundLight,

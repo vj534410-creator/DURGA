@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.example.durga.i18n.DurgaLanguage
 import com.example.durga.i18n.DurgaStrings
 import com.example.durga.model.IncidentCategory
+import com.example.durga.ui.components.DurgaBottomNav
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.LocalDurgaColors
 
@@ -60,6 +61,8 @@ fun ComplaintCategoryScreen(
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onNavigate: ((String) -> Unit)? = null,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val categories = listOf(
@@ -117,8 +120,18 @@ fun ComplaintCategoryScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
+        },
+        bottomBar = {
+            if (onNavigate != null) {
+                DurgaBottomNav(
+                    currentRoute = "complaint",
+                    currentLanguage = currentLanguage,
+                    onNavigate = onNavigate
+                )
+            }
         },
         containerColor = colors.background,
         modifier = modifier

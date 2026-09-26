@@ -106,6 +106,7 @@ fun SettingsScreen(
     onNavigate: (String) -> Unit,
     onNavigateToAuthorityPortal: () -> Unit = {},
     onNavigateToWebPortals: () -> Unit = onNavigateToAuthorityPortal,
+    onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalDurgaColors.current
@@ -125,7 +126,8 @@ fun SettingsScreen(
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onSelectLanguage,
-                onQuickExit = onQuickExit
+                onQuickExit = onQuickExit,
+                onOpenFeatureSwitcher = onOpenFeatureSwitcher
             )
         },
         bottomBar = {
