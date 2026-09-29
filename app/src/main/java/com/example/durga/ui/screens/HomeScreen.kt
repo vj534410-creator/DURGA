@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +29,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -83,7 +86,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -408,7 +410,10 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f, fill = false),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
@@ -434,17 +439,25 @@ fun HomeScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = DurgaEmergencyRedDark,
                                             fontSize = if (isAccessibilityLargeText) 18.sp else 16.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = "National 112 & Location Alert",
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = DurgaTextSecondaryMuted,
                                             fontSize = 11.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             Box(
                                 modifier = Modifier
@@ -456,7 +469,9 @@ fun HomeScreen(
                                     text = "24x7 ACTIVE",
                                     color = DurgaEmergencyRed,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -532,7 +547,9 @@ fun HomeScreen(
                                             fontWeight = FontWeight.Black,
                                             fontSize = 24.sp,
                                             letterSpacing = 2.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                     Text(
                                         text = when (currentLanguage) {
@@ -544,7 +561,9 @@ fun HomeScreen(
                                             color = Color.White.copy(alpha = 0.9f),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 9.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -590,7 +609,10 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f, fill = false),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
                                     text = "CASE STATUS",
                                     style = MaterialTheme.typography.labelSmall.copy(
@@ -598,7 +620,9 @@ fun HomeScreen(
                                         color = colors.primary,
                                         letterSpacing = 1.sp,
                                         fontSize = 11.sp
-                                    )
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -607,9 +631,13 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = colors.textPrimary,
                                         fontSize = 12.sp
-                                    )
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
+
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             if (unreadNotificationCount > 0) {
                                 Box(
@@ -617,20 +645,33 @@ fun HomeScreen(
                                         .background(Color(0xFFE11D48), RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
+                                    val newLabel = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "નવી"
+                                        DurgaLanguage.HINDI -> "नई"
+                                        else -> "New"
+                                    }
                                     Text(
-                                        text = "$unreadNotificationCount નવી",
+                                        text = "$unreadNotificationCount $newLabel",
                                         color = Color.White,
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             } else {
                                 Text(
-                                    text = "છેલ્લો અપડેટ: ૧૨ મિનિટ પહેલાં",
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "અપડેટ: ૧૨ મિ. પહેલાં"
+                                        DurgaLanguage.HINDI -> "अपडेट: १२ मि. पहले"
+                                        else -> "Updated 12m ago"
+                                    },
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = colors.textSecondary,
                                         fontSize = 10.5.sp
-                                    )
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -640,13 +681,18 @@ fun HomeScreen(
                         // Case Title
                         Text(
                             text = latestNotification?.title
-                                ?: "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ (Cyber Harassment)",
+                                ?: when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "ઓનલાઇન પીછો અને ધમકીની ફરિયાદ"
+                                    DurgaLanguage.HINDI -> "ऑनलाइन पीछा और धमकी की शिकायत"
+                                    else -> "Online Harassment & Threat Report"
+                                },
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary,
                                 fontSize = if (isAccessibilityLargeText) 17.sp else 15.sp
                             ),
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -658,7 +704,10 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f, fill = false),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(7.dp)
@@ -686,17 +735,27 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = if (progressPercent >= 90) DurgaSuccessGreen else colors.primary,
                                         fontSize = 12.sp
-                                    )
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
+                            Spacer(modifier = Modifier.width(8.dp))
+
                             Text(
-                                text = "$progressPercent% પ્રક્રિયા પૂર્ણ",
+                                text = when (currentLanguage) {
+                                    DurgaLanguage.GUJARATI -> "$progressPercent% પૂર્ણ"
+                                    DurgaLanguage.HINDI -> "$progressPercent% पूर्ण"
+                                    else -> "$progressPercent% Complete"
+                                },
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary,
                                     fontSize = 11.5.sp
-                                )
+                                ),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
 
@@ -790,7 +849,10 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f, fill = false),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(38.dp)
@@ -816,7 +878,10 @@ fun HomeScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary,
                                             fontSize = if (isAccessibilityLargeText) 19.sp else 17.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = when (currentLanguage) {
@@ -827,10 +892,15 @@ fun HomeScreen(
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary,
                                             fontSize = 11.5.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             Text(
                                 text = "100% PRIVATE",
@@ -839,6 +909,8 @@ fun HomeScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp
                                 ),
+                                maxLines = 1,
+                                softWrap = false,
                                 modifier = Modifier
                                     .background(DurgaSuccessLight, RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 3.dp)
@@ -1773,7 +1845,9 @@ private fun CleanCategoryChip(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 12.sp
                 ),
-                maxLines = 1
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -1889,7 +1963,7 @@ private fun OfficialInfoRow(
             colors = ButtonDefaults.buttonColors(containerColor = colors.surfaceVariant),
             shape = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-            modifier = Modifier.minimumInteractiveComponentSize()
+            modifier = Modifier.defaultMinSize(minWidth = 64.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Call,
@@ -1904,7 +1978,9 @@ private fun OfficialInfoRow(
                     color = colors.primary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
-                )
+                ),
+                maxLines = 1,
+                softWrap = false
             )
         }
     }

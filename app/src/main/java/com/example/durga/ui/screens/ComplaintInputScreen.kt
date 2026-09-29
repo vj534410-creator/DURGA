@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.sp
 import com.example.durga.i18n.DurgaLanguage
 import com.example.durga.i18n.DurgaStrings
 import com.example.durga.model.DraftComplaintEntity
+import com.example.durga.ui.components.DurgaBadgeType
+import com.example.durga.ui.components.DurgaFieldLabel
+import com.example.durga.ui.components.DurgaStatusBadge
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.DurgaBackgroundLight
 import com.example.ui.theme.DurgaBlueAction
@@ -125,29 +128,24 @@ fun ComplaintInputScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
+                DurgaStatusBadge(
                     text = "Category: ${currentDraft.category.replace("_", " ")}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = DurgaPrimaryNavy,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    ),
-                    modifier = Modifier
-                        .background(DurgaSectionSoft, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                    type = DurgaBadgeType.PRIMARY
                 )
 
-                Text(
+                DurgaStatusBadge(
                     text = "No login • 100% Private",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = DurgaSuccessGreen,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp
-                    )
+                    type = DurgaBadgeType.SUCCESS
                 )
             }
 
-            // Text input area
+            // Text input area with unified field label
+            DurgaFieldLabel(
+                text = DurgaStrings.get("describe_incident", currentLanguage),
+                isRequired = true,
+                helperText = "Type or dictate what happened in your own words. Details remain encrypted on your device."
+            )
+
             OutlinedTextField(
                 value = currentDraft.rawNotes,
                 onValueChange = onNotesChange,
@@ -159,9 +157,17 @@ fun ComplaintInputScreen(
                     Text(
                         text = DurgaStrings.get("describe_hint", currentLanguage),
                         color = DurgaTextLightMuted,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
+                        letterSpacing = 0.2.sp
                     )
                 },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = DurgaTextNavy,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    letterSpacing = 0.25.sp
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = DurgaTextNavy,
                     unfocusedTextColor = DurgaTextNavy,

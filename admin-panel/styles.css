@@ -29,7 +29,8 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.6;
   background-color: var(--bg-light);
   color: var(--text-main);
   height: 100vh;
@@ -640,51 +641,150 @@ body {
 }
 
 /* =========================================================
-   STATUS & PRIORITY BADGES
+   STATUS & PRIORITY BADGES (Flexbox Standardized)
    ========================================================= */
-.status-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
+.status-indicator-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  vertical-align: middle;
 }
 
-.status-REPORT_SUBMITTED, .status-SUBMITTED_TO_DURGA { background-color: #FEF3C7; color: #B45309; }
-.status-UNDER_REVIEW { background-color: #E0E7FF; color: #4338CA; }
-.status-ASSIGNED { background-color: #E0F2FE; color: #0369A1; }
-.status-UNDER_INVESTIGATION { background-color: #DBEAFE; color: #1D4ED8; }
-.status-ACTION_TAKEN { background-color: #FED7AA; color: #C2410C; }
-.status-RESOLVED { background-color: #DCFCE7; color: #15803D; }
-.status-CLOSED { background-color: #F1F5F9; color: #475569; }
+.status-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.status-badge, .status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.status-badge::before, .status-pill::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.status-REPORT_SUBMITTED,
+.status-SUBMITTED_TO_DURGA,
+.status-SUBMITTED {
+  background-color: #FEF3C7;
+  color: #B45309;
+  border-color: #FDE68A;
+}
+
+.status-UNDER_REVIEW {
+  background-color: #EEF2FF;
+  color: #4338CA;
+  border-color: #C7D2FE;
+}
+
+.status-ASSIGNED {
+  background-color: #E0F2FE;
+  color: #0369A1;
+  border-color: #BAE6FD;
+}
+
+.status-UNDER_INVESTIGATION {
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+}
+
+.status-ACTION_RECORDED,
+.status-ACTION_TAKEN {
+  background-color: #FFEDD5;
+  color: #C2410C;
+  border-color: #FED7AA;
+}
+
+.status-RESOLVED {
+  background-color: #DCFCE7;
+  color: #15803D;
+  border-color: #BBF7D0;
+}
+
+.status-CLOSED {
+  background-color: #F1F5F9;
+  color: #475569;
+  border-color: #CBD5E1;
+}
+
+.status-EMERGENCY {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-color: #FCA5A5;
+}
 
 .priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
-.priority-EMERGENCY { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #F87171; }
-.priority-URGENT { background-color: #FFEDD5; color: #C2410C; }
-.priority-HIGH { background-color: #FEF3C7; color: #B45309; }
-.priority-NORMAL { background-color: #F1F5F9; color: #475569; }
+.priority-EMERGENCY { background-color: #FEE2E2; color: #991B1B; border: 1px solid #F87171; }
+.priority-URGENT { background-color: #FFEDD5; color: #9A3412; border: 1px solid #FDBA74; }
+.priority-HIGH { background-color: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+.priority-NORMAL { background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
 
 .badge-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   padding: 3px 8px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 11px;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
   background-color: #F1F5F9;
   color: #334155;
-  display: inline-block;
+  border: 1px solid #E2E8F0;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
-.badge-tag.highlight { background-color: #FFE4E6; color: #BE123C; }
-.badge-tag.alert { background-color: #FEE2E2; color: #B91C1C; }
-.badge-tag.warn { background-color: #FEF3C7; color: #B45309; }
+.badge-tag.highlight { background-color: #FFE4E6; color: #BE123C; border-color: #FECDD3; }
+.badge-tag.alert { background-color: #FEE2E2; color: #B91C1C; border-color: #FCA5A5; }
+.badge-tag.warn { background-color: #FEF3C7; color: #B45309; border-color: #FDE68A; }
 
 /* Buttons */
 .btn {
@@ -825,35 +925,58 @@ body {
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
   background: #F8FAFC;
-  padding: 14px;
-  border-radius: 8px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  align-items: start;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .info-item label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 2px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  line-height: 1.35;
 }
 
 .info-item span {
-  font-size: 13px;
+  display: block;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-main);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  word-break: break-word;
 }
 
 .narrative-box {
   background: #F8FAFC;
+  border: 1px solid #E2E8F0;
   border-left: 4px solid var(--primary-accent);
-  padding: 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  line-height: 1.6;
+  padding: 16px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
   color: #1E293B;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .evidence-items-list {

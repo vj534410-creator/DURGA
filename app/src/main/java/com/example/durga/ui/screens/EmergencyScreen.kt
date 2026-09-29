@@ -37,6 +37,8 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -133,13 +135,16 @@ fun EmergencyScreen(
                     colors = CardDefaults.cardColors(containerColor = DurgaEmergencyRedLight),
                     border = androidx.compose.foundation.BorderStroke(1.5.dp, DurgaEmergencyRed)
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(38.dp)
@@ -154,33 +159,49 @@ fun EmergencyScreen(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Column {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = "112 National Emergency",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = DurgaEmergencyRed,
-                                            fontSize = 17.sp
-                                        )
+                                            fontSize = 15.sp
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = "Immediate police, fire & medical dispatch",
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = DurgaTextSecondaryMuted,
                                             fontSize = 12.sp
-                                        )
+                                        ),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(10.dp))
 
                             Button(
                                 onClick = { onCallNumber("112") },
                                 colors = ButtonDefaults.buttonColors(containerColor = DurgaEmergencyRed),
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                                modifier = Modifier.minimumInteractiveComponentSize()
+                                modifier = Modifier
+                                    .defaultMinSize(minWidth = 92.dp)
+                                    .testTag("call_112_banner_button")
                             ) {
-                                Text("CALL 112", fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(
+                                    text = "CALL 112",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    fontSize = 13.sp
+                                )
                             }
                         }
 
@@ -205,7 +226,8 @@ fun EmergencyScreen(
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = DurgaTextNavy,
                                     fontSize = 11.sp
-                                )
+                                ),
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }

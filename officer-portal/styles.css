@@ -17,7 +17,8 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.6;
   background-color: var(--bg-color);
   color: var(--text-dark);
   height: 100vh;
@@ -223,58 +224,176 @@ body {
 }
 
 .tag-category {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   background-color: #E2E8F0;
+  color: #0F172A;
   padding: 3px 8px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   margin-bottom: 6px;
+  line-height: 1.3;
 }
 
 .dossier-header h2 {
   font-size: 20px;
   font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
 .ref-id {
   font-size: 12px;
   color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
-.status-pill {
-  padding: 6px 12px;
+.dossier-status-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.status-indicator-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  vertical-align: middle;
+}
+
+.status-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.status-pill, .status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.status-pill::before, .status-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.status-REPORT_SUBMITTED,
+.status-SUBMITTED_TO_DURGA,
+.status-SUBMITTED {
   background-color: #FEF3C7;
   color: #B45309;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
+  border-color: #FDE68A;
+}
+
+.status-UNDER_REVIEW {
+  background-color: #EEF2FF;
+  color: #4338CA;
+  border-color: #C7D2FE;
+}
+
+.status-ASSIGNED {
+  background-color: #E0F2FE;
+  color: #0369A1;
+  border-color: #BAE6FD;
+}
+
+.status-UNDER_INVESTIGATION {
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+}
+
+.status-ACTION_RECORDED,
+.status-ACTION_TAKEN {
+  background-color: #FFEDD5;
+  color: #C2410C;
+  border-color: #FED7AA;
+}
+
+.status-RESOLVED {
+  background-color: #DCFCE7;
+  color: #15803D;
+  border-color: #BBF7D0;
+}
+
+.status-CLOSED {
+  background-color: #F1F5F9;
+  color: #475569;
+  border-color: #CBD5E1;
+}
+
+.status-EMERGENCY {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-color: #FCA5A5;
 }
 
 .dossier-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+  align-items: start;
 }
 
 .detail-box {
   background-color: #fff;
   border: 1px solid var(--border);
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .detail-box label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   color: var(--text-muted);
   text-transform: uppercase;
   font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.35;
+  margin-bottom: 4px;
 }
 
 .detail-box .val {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  margin-top: 4px;
+  color: var(--text-dark);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  word-break: break-word;
 }
 
 .section-card {
@@ -287,30 +406,43 @@ body {
 .section-card h4 {
   font-size: 13px;
   margin-bottom: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .narrative-box {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  color: #1E293B;
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   background: #F8FAFC;
-  padding: 12px;
-  border-radius: 6px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--police-blue);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .evidence-chip {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   background: #F1F5F9;
   padding: 10px 14px;
   border-radius: 6px;
   font-size: 12px;
+  border: 1px solid #E2E8F0;
 }
 
 .hash-tag {
   color: var(--success);
   font-weight: 700;
   font-size: 11px;
+  letter-spacing: 0.03em;
+  font-family: monospace;
 }
 
 .action-card {
@@ -322,23 +454,60 @@ body {
 }
 
 .form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
 .form-group select, .form-group textarea {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: inherit;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .card-actions {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .main-body {
+    flex-direction: column;
+  }
+  .cases-pane {
+    width: 100%;
+    height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .review-pane {
+    padding: 16px 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .top-nav {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .officer-session {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .dossier-grid {
+    grid-template-columns: 1fr;
+  }
 }

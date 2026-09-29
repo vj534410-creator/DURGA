@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,6 +67,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,6 +95,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -542,6 +545,129 @@ fun ThemeSelectionDialog(
     )
 }
 
+enum class DurgaBadgeType {
+    INFO,
+    SUCCESS,
+    WARNING,
+    EMERGENCY,
+    NEUTRAL,
+    PRIMARY
+}
+
+/**
+ * Consistent, accessible status indicator badge with unified Inter typography,
+ * high-contrast colors, optimal padding, and non-wrapping text layout.
+ */
+@Composable
+fun DurgaStatusBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    type: DurgaBadgeType = DurgaBadgeType.INFO,
+    icon: ImageVector? = null,
+    customColor: Color? = null,
+    customBgColor: Color? = null
+) {
+    val colors = LocalDurgaColors.current
+    val (textColor, bgColor) = when {
+        customColor != null -> Pair(customColor, customBgColor ?: customColor.copy(alpha = 0.12f))
+        type == DurgaBadgeType.SUCCESS -> Pair(DurgaSuccessGreen, Color(0xFFECFDF5))
+        type == DurgaBadgeType.EMERGENCY -> Pair(DurgaEmergencyRed, DurgaEmergencyRedLight)
+        type == DurgaBadgeType.WARNING -> Pair(Color(0xFFD97706), Color(0xFFFFFBEB))
+        type == DurgaBadgeType.PRIMARY -> Pair(colors.primary, colors.primaryContainer.copy(alpha = 0.6f))
+        type == DurgaBadgeType.NEUTRAL -> Pair(colors.textSecondary, colors.surfaceVariant)
+        else -> Pair(colors.primary, colors.surfaceVariant.copy(alpha = 0.7f))
+    }
+
+    Box(
+        modifier = modifier
+            .background(bgColor, RoundedCornerShape(6.dp))
+            .border(0.7.dp, textColor.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = textColor,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    lineHeight = 17.sp,
+                    letterSpacing = 0.4.sp
+                ),
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+/**
+ * Consistent complaint field label with unified Inter typography,
+ * 1.5x-1.6x line-height, optional required indicator, and helper text.
+ */
+@Composable
+fun DurgaFieldLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    isRequired: Boolean = false,
+    helperText: String? = null
+) {
+    val colors = LocalDurgaColors.current
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp,
+                    letterSpacing = 0.15.sp
+                )
+            )
+            if (isRequired) {
+                Text(
+                    text = "*",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = DurgaEmergencyRed,
+                        fontSize = 13.sp
+                    )
+                )
+            }
+        }
+        if (helperText != null) {
+            Text(
+                text = helperText,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = colors.textSecondary,
+                    fontSize = 11.5.sp,
+                    lineHeight = 18.sp,
+                    letterSpacing = 0.2.sp
+                )
+            )
+        }
+    }
+}
+
 @Composable
 fun DurgaCard(
     modifier: Modifier = Modifier,
@@ -696,7 +822,7 @@ fun EmergencyContactRow(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     if (badge != null) {
                         Text(
                             text = badge,
@@ -705,6 +831,8 @@ fun EmergencyContactRow(
                                 color = colors.primary,
                                 fontSize = 10.sp
                             ),
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier
                                 .background(colors.primaryContainer, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -716,17 +844,23 @@ fun EmergencyContactRow(
                             fontWeight = FontWeight.SemiBold,
                             color = colors.textPrimary,
                             fontSize = 14.sp
-                        )
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = colors.textSecondary,
                             fontSize = 12.sp
-                        )
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.width(10.dp))
 
             Button(
                 onClick = onCallClick,
@@ -734,7 +868,7 @@ fun EmergencyContactRow(
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 modifier = Modifier
-                    .minimumInteractiveComponentSize()
+                    .defaultMinSize(minWidth = 72.dp)
                     .testTag("call_button_$number")
             ) {
                 Text(
@@ -743,7 +877,9 @@ fun EmergencyContactRow(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
-                    )
+                    ),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
@@ -792,8 +928,8 @@ fun DurgaBottomNav(
             Triple(
                 "home",
                 when (currentLanguage) {
-                    DurgaLanguage.GUJARATI -> "હોમ (Home)"
-                    DurgaLanguage.HINDI -> "होम (Home)"
+                    DurgaLanguage.GUJARATI -> "હોમ"
+                    DurgaLanguage.HINDI -> "होम"
                     else -> "Home"
                 },
                 Icons.Outlined.Home
@@ -801,8 +937,8 @@ fun DurgaBottomNav(
             Triple(
                 "complaint",
                 when (currentLanguage) {
-                    DurgaLanguage.GUJARATI -> "ફરિયાદ (Complaint)"
-                    DurgaLanguage.HINDI -> "शिकायत (Complaint)"
+                    DurgaLanguage.GUJARATI -> "ફરિયાદ"
+                    DurgaLanguage.HINDI -> "शिकायत"
                     else -> "Complaints"
                 },
                 Icons.Filled.EditNote
@@ -810,9 +946,9 @@ fun DurgaBottomNav(
             Triple(
                 "vault",
                 when (currentLanguage) {
-                    DurgaLanguage.GUJARATI -> "સુરક્ષા / મદદ"
-                    DurgaLanguage.HINDI -> "सुरक्षा / मदद"
-                    else -> "Safety / Help"
+                    DurgaLanguage.GUJARATI -> "સુરક્ષા"
+                    DurgaLanguage.HINDI -> "सुरक्षा"
+                    else -> "Safety"
                 },
                 Icons.Outlined.Lock
             ),
@@ -866,7 +1002,9 @@ fun DurgaBottomNav(
                         text = label,
                         fontSize = if (isSelected) 11.sp else 10.5.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(

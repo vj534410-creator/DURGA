@@ -86,7 +86,9 @@ import com.example.durga.model.CaseUpdateEntity
 import com.example.durga.model.DraftComplaintEntity
 import com.example.durga.model.EvidenceEntity
 import com.example.durga.model.IncidentCategory
+import com.example.durga.ui.components.DurgaBadgeType
 import com.example.durga.ui.components.DurgaBottomNav
+import com.example.durga.ui.components.DurgaStatusBadge
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.DurgaBackgroundLight
 import com.example.ui.theme.DurgaBlueAction
@@ -315,49 +317,48 @@ fun MyCasesScreen(
                                     )
                                 )
 
-                                val statusColor = when (caseEntity.status) {
-                                    CaseStatus.REPORT_SUBMITTED.name -> DurgaBlueAction
-                                    CaseStatus.RECEIVED.name, CaseStatus.ASSIGNED.name -> DurgaWarning
-                                    CaseStatus.ACTION_RECORDED.name -> DurgaSuccessGreen
-                                    CaseStatus.CLOSED.name -> DurgaTextSecondaryMuted
-                                    else -> DurgaPrimaryNavy
+                                val (badgeType, customColor) = when (caseEntity.status) {
+                                    CaseStatus.REPORT_SUBMITTED.name -> Pair(DurgaBadgeType.PRIMARY, DurgaBlueAction)
+                                    CaseStatus.RECEIVED.name, CaseStatus.ASSIGNED.name -> Pair(DurgaBadgeType.WARNING, DurgaWarning)
+                                    CaseStatus.ACTION_RECORDED.name -> Pair(DurgaBadgeType.SUCCESS, DurgaSuccessGreen)
+                                    CaseStatus.CLOSED.name -> Pair(DurgaBadgeType.NEUTRAL, null)
+                                    else -> Pair(DurgaBadgeType.PRIMARY, null)
                                 }
 
-                                Text(
+                                DurgaStatusBadge(
                                     text = caseEntity.status.replace("_", " "),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = statusColor,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp
-                                    ),
-                                    modifier = Modifier
-                                        .background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    type = badgeType,
+                                    customColor = customColor
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
                                 text = caseEntity.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = DurgaTextNavy,
-                                    fontSize = 14.sp
+                                    fontSize = 14.sp,
+                                    lineHeight = 22.sp,
+                                    letterSpacing = 0.15.sp
                                 )
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "Category: ${caseEntity.category}",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = DurgaTextSecondaryMuted,
-                                        fontSize = 11.sp
+                                        fontSize = 11.5.sp,
+                                        lineHeight = 18.sp,
+                                        letterSpacing = 0.2.sp
                                     )
                                 )
                                 Text(
@@ -365,7 +366,9 @@ fun MyCasesScreen(
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = DurgaBlueAction,
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 11.sp
+                                        fontSize = 11.5.sp,
+                                        lineHeight = 18.sp,
+                                        letterSpacing = 0.2.sp
                                     )
                                 )
                             }
@@ -631,10 +634,14 @@ private fun StatusStepItem(label: String, isDone: Boolean, isCurrent: Boolean) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 11.sp,
+                lineHeight = 17.sp,
+                letterSpacing = 0.3.sp,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                 color = if (isCurrent) DurgaPrimaryNavy else DurgaTextSecondaryMuted
-            )
+            ),
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -1723,7 +1730,7 @@ fun WitnessReportScreen(
                 ) {
                     Icon(Icons.Default.Call, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Call 112 For Immediate Emergency", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Call 112 For Immediate Emergency", fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, softWrap = false)
                 }
             }
 
@@ -1761,7 +1768,7 @@ fun WitnessReportScreen(
                                 .fillMaxWidth()
                                 .minimumInteractiveComponentSize()
                         ) {
-                            Text("Start Anonymous Witness Report", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Start Anonymous Witness Report", color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
                 }

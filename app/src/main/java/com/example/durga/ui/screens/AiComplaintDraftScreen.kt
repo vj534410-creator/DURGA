@@ -42,6 +42,8 @@ import com.example.durga.i18n.DurgaLanguage
 import com.example.durga.i18n.DurgaStrings
 import com.example.durga.model.AiGeneratedDraft
 import com.example.durga.model.DraftComplaintEntity
+import com.example.durga.ui.components.DurgaBadgeType
+import com.example.durga.ui.components.DurgaStatusBadge
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.DurgaBackgroundLight
 import com.example.ui.theme.DurgaBorderLight
@@ -164,41 +166,39 @@ fun AiComplaintDraftScreen(
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = DurgaPrimaryNavy,
-                                fontSize = 14.sp
+                                fontSize = 14.sp,
+                                lineHeight = 22.sp,
+                                letterSpacing = 0.1.sp
                             )
                         )
-                        Text(
+                        DurgaStatusBadge(
                             text = "READY FOR REVIEW",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = DurgaSuccessGreen,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp
-                            ),
-                            modifier = Modifier
-                                .background(DurgaSuccessGreen.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                            type = DurgaBadgeType.SUCCESS
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
                         text = aiDraft?.title?.ifBlank { null } ?: currentDraft.aiDraftTitle.ifBlank { "Official Complaint" },
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = DurgaTextNavy,
-                            fontSize = 15.sp
+                            fontSize = 15.sp,
+                            lineHeight = 24.sp,
+                            letterSpacing = 0.15.sp
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
                         text = aiDraft?.detailedDescription?.ifBlank { null } ?: currentDraft.aiDraftDescription.ifBlank { currentDraft.rawNotes },
                         style = MaterialTheme.typography.bodyMedium.copy(
                             color = DurgaTextNavy,
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp
+                            fontSize = 13.5.sp,
+                            lineHeight = 21.sp, // ~1.55x
+                            letterSpacing = 0.2.sp
                         )
                     )
                 }

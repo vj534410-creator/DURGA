@@ -41,6 +41,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +70,9 @@ import com.example.durga.model.CaseEntity
 import com.example.durga.model.DraftComplaintEntity
 import com.example.durga.model.EvidenceEntity
 import com.example.durga.ui.SubmissionState
+import com.example.durga.ui.components.DurgaBadgeType
+import com.example.durga.ui.components.DurgaFieldLabel
+import com.example.durga.ui.components.DurgaStatusBadge
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.ui.theme.DurgaBackgroundLight
 import com.example.ui.theme.DurgaBlueAction
@@ -121,46 +125,102 @@ fun EditComplaintScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                DurgaStatusBadge(
+                    text = "STEP 4 OF 7",
+                    type = DurgaBadgeType.PRIMARY
+                )
+                DurgaStatusBadge(
+                    text = "EDITABLE DRAFT",
+                    type = DurgaBadgeType.SUCCESS
+                )
+            }
+
             Text(
-                text = "Ensure all statements are accurate before continuing. You can edit any sentence.",
-                style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted, fontSize = 12.sp)
+                text = "Ensure all statements are accurate before continuing. You can edit any sentence or legal detail.",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = DurgaTextSecondaryMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    letterSpacing = 0.2.sp
+                )
+            )
+
+            DurgaFieldLabel(
+                text = "Complaint Subject / Title",
+                isRequired = true,
+                helperText = "A short, descriptive headline for this incident"
             )
 
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Complaint Subject / Title", color = DurgaTextSecondaryMuted) },
+                placeholder = { Text("e.g. Threatening messages and intimidation", color = DurgaTextSecondaryMuted) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("edit_title_input"),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = DurgaTextNavy,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    letterSpacing = 0.15.sp
+                ),
                 colors = defaultTextFieldColors(),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            DurgaFieldLabel(
+                text = "Brief Executive Summary",
+                isRequired = true,
+                helperText = "2-3 sentences summarizing who, when, and what happened"
             )
 
             OutlinedTextField(
                 value = summary,
                 onValueChange = { summary = it },
-                label = { Text("Brief Executive Summary", color = DurgaTextSecondaryMuted) },
+                placeholder = { Text("Summary of the key incident facts...", color = DurgaTextSecondaryMuted) },
                 minLines = 2,
                 maxLines = 4,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("edit_summary_input"),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = DurgaTextNavy,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    letterSpacing = 0.15.sp
+                ),
                 colors = defaultTextFieldColors(),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            DurgaFieldLabel(
+                text = "Detailed Incident Description",
+                isRequired = true,
+                helperText = "Full chronological statement of the incident in complete detail"
             )
 
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Detailed Incident Description", color = DurgaTextSecondaryMuted) },
+                placeholder = { Text("Full description of the incident...", color = DurgaTextSecondaryMuted) },
                 minLines = 5,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("edit_description_input"),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = DurgaTextNavy,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    letterSpacing = 0.15.sp
+                ),
                 colors = defaultTextFieldColors(),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
             Button(
@@ -770,23 +830,76 @@ fun FinalConfirmationScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
+                border = androidx.compose.foundation.BorderStroke(1.2.dp, DurgaBorderLight),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Official Submission Summary",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = DurgaTextNavy)
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Official Submission Summary",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = DurgaTextNavy,
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp,
+                                letterSpacing = 0.1.sp
+                            )
+                        )
+                        DurgaStatusBadge(
+                            text = "READY",
+                            type = DurgaBadgeType.SUCCESS
+                        )
+                    }
+
+                    HorizontalDivider(color = DurgaBorderLight.copy(alpha = 0.6f))
+
+                    val summaryItems = listOf(
+                        Pair("Category", currentDraft.category.replace("_", " ")),
+                        Pair("Title", currentDraft.aiDraftTitle.ifBlank { "Official Complaint" }),
+                        Pair("Date / Time", "${currentDraft.incidentDate} at ${currentDraft.incidentTime}"),
+                        Pair("Location", currentDraft.incidentLocation.ifBlank { "Not specified" }),
+                        Pair("Complainant", currentDraft.complainantName.ifBlank { "Anonymous / Witness" }),
+                        Pair("Evidence", "$evidenceCount attached file(s)"),
+                        Pair("Storage", "AES-256 Encrypted on Device")
                     )
-                    Text("• Category: ${currentDraft.category.replace("_", " ")}", color = DurgaTextSecondaryMuted, fontSize = 12.sp)
-                    Text("• Title: ${currentDraft.aiDraftTitle.ifBlank { "Official Complaint" }}", color = DurgaTextSecondaryMuted, fontSize = 12.sp)
-                    Text("• Date/Time: ${currentDraft.incidentDate} at ${currentDraft.incidentTime}", color = DurgaTextSecondaryMuted, fontSize = 12.sp)
-                    Text("• Location: ${currentDraft.incidentLocation}", color = DurgaTextSecondaryMuted, fontSize = 12.sp)
-                    Text("• Complainant: ${currentDraft.complainantName.ifBlank { "Anonymous / Witness" }}", color = DurgaTextSecondaryMuted, fontSize = 12.sp)
-                    Text("• Attached Evidence: $evidenceCount file(s)", color = DurgaTextSecondaryMuted, fontSize = 12.sp)
-                    Text("• Encrypted Local Copy: Saved", color = DurgaSuccessGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+
+                    for (item in summaryItems) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text(
+                                text = item.first,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = DurgaTextSecondaryMuted,
+                                    fontSize = 12.sp,
+                                    lineHeight = 18.sp,
+                                    letterSpacing = 0.2.sp
+                                ),
+                                modifier = Modifier.weight(0.4f)
+                            )
+                            Text(
+                                text = item.second,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (item.first == "Storage") DurgaSuccessGreen else DurgaTextNavy,
+                                    fontSize = 12.5.sp,
+                                    lineHeight = 19.sp,
+                                    letterSpacing = 0.15.sp,
+                                    textAlign = TextAlign.End
+                                ),
+                                modifier = Modifier.weight(0.6f)
+                            )
+                        }
+                    }
                 }
             }
 

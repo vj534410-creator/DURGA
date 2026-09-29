@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -762,7 +764,9 @@ private fun ActionPlanItem(
                         fontWeight = FontWeight.Bold,
                         color = if (isEmergency) DurgaEmergencyRed else DurgaTextNavy,
                         fontSize = 14.sp
-                    )
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -770,7 +774,9 @@ private fun ActionPlanItem(
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = DurgaTextSecondaryMuted,
                         fontSize = 11.sp
-                    )
+                    ),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -781,9 +787,16 @@ private fun ActionPlanItem(
                 colors = ButtonDefaults.buttonColors(containerColor = if (isEmergency) DurgaEmergencyRed else DurgaPrimaryNavy),
                 shape = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                modifier = Modifier.minimumInteractiveComponentSize()
+                modifier = Modifier.defaultMinSize(minWidth = 76.dp)
             ) {
-                Text(text = buttonLabel, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                Text(
+                    text = buttonLabel,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }

@@ -53,7 +53,10 @@ function renderCasesList() {
          onclick="selectCase('${c.complaint_ref_no}')">
       <div class="card-top">
         <span class="card-ref">${c.complaint_ref_no}</span>
-        <span class="tag-category">${c.category_id || 'GENERAL'}</span>
+        <div class="status-indicator-wrapper">
+          <span class="tag-category">${c.category_id || 'GENERAL'}</span>
+          <span class="status-badge status-${c.current_status || 'REPORT_SUBMITTED'}">${(c.current_status || 'REPORT_SUBMITTED').replace(/_/g, ' ')}</span>
+        </div>
       </div>
       <div class="card-title">${c.title}</div>
       <div class="card-loc">📍 ${c.incident_location || 'Gujarat'}</div>
@@ -73,7 +76,13 @@ function selectCase(refNo) {
   document.getElementById('dossier-category').textContent = activeCase.category_id || 'INCIDENT';
   document.getElementById('dossier-title').textContent = activeCase.title;
   document.getElementById('dossier-ref').textContent = `Official Ref: ${activeCase.complaint_ref_no}`;
-  document.getElementById('dossier-status').textContent = activeCase.current_status.replace(/_/g, ' ');
+  
+  const statusElem = document.getElementById('dossier-status');
+  if (statusElem) {
+    statusElem.textContent = (activeCase.current_status || 'UNDER_INVESTIGATION').replace(/_/g, ' ');
+    statusElem.className = `status-pill status-${activeCase.current_status || 'UNDER_INVESTIGATION'}`;
+  }
+
   document.getElementById('dossier-datetime').textContent = `${activeCase.incident_date} • ${activeCase.incident_time}`;
   document.getElementById('dossier-location').textContent = activeCase.incident_location;
   document.getElementById('dossier-narrative').textContent = activeCase.structured_description || activeCase.original_description;
@@ -103,7 +112,11 @@ async function submitOfficerAction() {
   }
 
   activeCase.current_status = newStatus;
-  document.getElementById('dossier-status').textContent = newStatus.replace(/_/g, ' ');
+  const statusElem = document.getElementById('dossier-status');
+  if (statusElem) {
+    statusElem.textContent = newStatus.replace(/_/g, ' ');
+    statusElem.className = `status-pill status-${newStatus}`;
+  }
   alert(`Officer Action Recorded: Case ${activeCase.complaint_ref_no} updated to ${newStatus}. Statutory audit log preserved.`);
   refreshOfficerCases();
 }
