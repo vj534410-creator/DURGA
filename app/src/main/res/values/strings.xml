@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">DURGA</string>
+
+    <!-- Launcher Quick Action Shortcuts -->
+    <string name="shortcut_sos_short">SOS Help</string>
+    <string name="shortcut_sos_long">SOS / Emergency Help</string>
+    <string name="shortcut_complaint_short">New Complaint</string>
+    <string name="shortcut_complaint_long">File New Complaint</string>
+    <string name="shortcut_help_near_me_short">Help Near Me</string>
+    <string name="shortcut_help_near_me_long">Emergency Help Centers Near Me</string>
+    <string name="shortcut_lock_vault_short">Lock Evidence</string>
+    <string name="shortcut_lock_vault_long">Securely Lock Evidence Vault</string>
 </resources>

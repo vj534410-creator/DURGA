@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Outer Safety Halo / Circle -->
+    <path
+        android:fillColor="#DCFCE7"
+        android:pathData="M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z" />
+    <!-- Safety Shield Background -->
+    <path
+        android:fillColor="#16A34A"
+        android:pathData="M12,4 L5,7.5 V12.2 C5,16.5 8,20.4 12,21.5 C16,20.4 19,16.5 19,12.2 V7.5 L12,4 Z" />
+    <!-- Location Pin inside Shield -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,7 C10.34,7 9,8.34 9,10 C9,12.25 12,15.5 12,15.5 C12,15.5 15,12.25 15,10 C15,8.34 13.66,7 12,7 Z M12,11.2 C11.34,11.2 10.8,10.66 10.8,10 C10.8,9.34 11.34,8.8 12,8.8 C12.66,8.8 13.2,9.34 13.2,10 C13.2,10.66 12.66,11.2 12,11.2 Z" />
+</vector>

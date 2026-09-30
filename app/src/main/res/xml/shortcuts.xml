@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 1. SOS Emergency Shortcut -->
+    <shortcut
+        android:shortcutId="sos_emergency"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_sos"
+        android:shortcutShortLabel="@string/shortcut_sos_short"
+        android:shortcutLongLabel="@string/shortcut_sos_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.aistudio.durga.safety"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_SHORTCUT_ACTION"
+                android:value="ACTION_SOS" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- 2. New Complaint Shortcut -->
+    <shortcut
+        android:shortcutId="new_complaint"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_complaint"
+        android:shortcutShortLabel="@string/shortcut_complaint_short"
+        android:shortcutLongLabel="@string/shortcut_complaint_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.aistudio.durga.safety"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_SHORTCUT_ACTION"
+                android:value="ACTION_NEW_COMPLAINT" />
+        </intent>
+    </shortcut>
+
+    <!-- 3. Help Near Me Shortcut -->
+    <shortcut
+        android:shortcutId="help_near_me"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_help_near_me"
+        android:shortcutShortLabel="@string/shortcut_help_near_me_short"
+        android:shortcutLongLabel="@string/shortcut_help_near_me_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.aistudio.durga.safety"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_SHORTCUT_ACTION"
+                android:value="ACTION_HELP_NEAR_ME" />
+        </intent>
+    </shortcut>
+
+    <!-- 4. Lock Evidence Vault Shortcut -->
+    <shortcut
+        android:shortcutId="lock_evidence"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_lock_evidence"
+        android:shortcutShortLabel="@string/shortcut_lock_vault_short"
+        android:shortcutLongLabel="@string/shortcut_lock_vault_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.aistudio.durga.safety"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_SHORTCUT_ACTION"
+                android:value="ACTION_LOCK_EVIDENCE" />
+        </intent>
+    </shortcut>
+</shortcuts>

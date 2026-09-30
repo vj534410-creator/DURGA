@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Outer Halo / Circle -->
+    <path
+        android:fillColor="#DBEAFE"
+        android:pathData="M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z" />
+    <!-- Protective Shield Background -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M12,4 L5,7.5 V12.2 C5,16.5 8,20.4 12,21.5 C16,20.4 19,16.5 19,12.2 V7.5 L12,4 Z" />
+    <!-- Document with Plus symbol -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M9,8 h6 v1.5 h-6 z M9,11 h6 v1.5 h-6 z M11,14 h2 v4 h-2 z M9,15 h6 v2 h-6 z" />
+</vector>
