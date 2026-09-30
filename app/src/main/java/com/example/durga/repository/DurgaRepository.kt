@@ -39,15 +39,27 @@ class DurgaRepository(private val context: Context) {
     private val safetyCardDao = db.safetyCardDao()
     private val auditDao = db.auditDao()
     private val notificationDao = db.notificationDao()
+    private val trustedContactDao = db.trustedContactDao()
 
     init {
-        // Seed official services & sample notifications if empty
+        // Seed official services & default emergency contact if empty
         CoroutineScope(Dispatchers.IO).launch {
             if (serviceDao.getServicesCount() == 0) {
                 serviceDao.insertServices(DurgaBackendClient.getVerifiedIndianEmergencyServices())
             }
             seedSampleNotificationsIfEmpty()
         }
+    }
+
+    // --- Trusted Contacts ---
+    val allTrustedContacts: Flow<List<com.example.durga.model.TrustedContactEntity>> = trustedContactDao.getAllContacts()
+
+    suspend fun insertTrustedContact(contact: com.example.durga.model.TrustedContactEntity) = withContext(Dispatchers.IO) {
+        trustedContactDao.insertContact(contact)
+    }
+
+    suspend fun deleteTrustedContact(id: String) = withContext(Dispatchers.IO) {
+        trustedContactDao.deleteContact(id)
     }
 
     // --- Cases ---
@@ -135,10 +147,12 @@ class DurgaRepository(private val context: Context) {
         notificationDao.insertNotification(initialNotification)
         DurgaNotificationHelper.postCaseProgressNotification(context, initialNotification)
 
-        // Submit to backend
+        // Submit to backend - if unreachable, mark offline without lying to user
         val serverResult = DurgaBackendClient.submitCaseToBackend(caseEntity, updatedEvidence.size)
         if (serverResult.isSuccess) {
-            caseDao.updateCase(caseEntity.copy(isSubmittedToServer = true))
+            caseDao.updateCase(caseEntity.copy(isSubmittedToServer = true, serverSyncError = null))
+        } else {
+            caseDao.updateCase(caseEntity.copy(isSubmittedToServer = false, serverSyncError = "Saved locally in secure vault (Offline)"))
         }
 
         // Delete draft if it was saved

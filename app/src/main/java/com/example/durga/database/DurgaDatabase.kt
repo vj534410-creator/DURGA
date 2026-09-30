@@ -12,6 +12,7 @@ import com.example.durga.model.DraftComplaintEntity
 import com.example.durga.model.EvidenceEntity
 import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
+import com.example.durga.model.TrustedContactEntity
 
 @Database(
     entities = [
@@ -22,9 +23,10 @@ import com.example.durga.model.SafetyCardEntity
         OfficialServiceEntity::class,
         SafetyCardEntity::class,
         AuditAccessLogEntity::class,
-        CaseNotificationEntity::class
+        CaseNotificationEntity::class,
+        TrustedContactEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class DurgaDatabase : RoomDatabase() {
@@ -36,6 +38,7 @@ abstract class DurgaDatabase : RoomDatabase() {
     abstract fun safetyCardDao(): SafetyCardDao
     abstract fun auditDao(): AuditDao
     abstract fun notificationDao(): CaseNotificationDao
+    abstract fun trustedContactDao(): TrustedContactDao
 
     companion object {
         @Volatile

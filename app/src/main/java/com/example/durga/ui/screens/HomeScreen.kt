@@ -97,6 +97,7 @@ import com.example.durga.ui.components.DurgaBottomNav
 import com.example.durga.ui.components.DurgaTopBar
 import com.example.durga.ui.components.EmergencyCallCard
 import com.example.durga.ui.components.ThemeSelectionDialog
+import com.example.ui.theme.DurgaBlueAction
 import com.example.ui.theme.DurgaBorderLight
 import com.example.ui.theme.DurgaBorderSubtle
 import com.example.ui.theme.DurgaEmergencyRed
@@ -148,6 +149,10 @@ fun HomeScreen(
     onThemeChange: (DurgaThemeMode) -> Unit = {},
     onStartCategoryComplaint: ((IncidentCategory) -> Unit)? = null,
     onOpenFeatureSwitcher: (() -> Unit)? = null,
+    liveLocationDescription: String = "",
+    trustedContactsCount: Int = 0,
+    onRequestLiveGps: () -> Unit = {},
+    onSendSosAlert: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -179,6 +184,7 @@ fun HomeScreen(
                 val elapsed = System.currentTimeMillis() - startTime
                 sosHoldProgress = (elapsed / 3000f).coerceIn(0f, 1f)
                 if (sosHoldProgress >= 1f) {
+                    onRequestLiveGps()
                     showSosActiveDialog = true
                     isHoldingSos = false
                     sosHoldProgress = 0f
@@ -1686,7 +1692,7 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Status Checklist
+                    // Real Status Checklist
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1696,31 +1702,36 @@ fun HomeScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = Icons.Default.GpsFixed,
                                 contentDescription = null,
-                                tint = DurgaSuccessGreen,
+                                tint = DurgaPrimaryNavy,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Live GPS Coordinates Acquired",
+                                text = liveLocationDescription.ifBlank { "GPS Coordinates: Querying real-time fix..." },
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = DurgaTextNavy,
-                                    fontSize = 12.sp
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             )
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = DurgaSuccessGreen,
+                                tint = if (trustedContactsCount > 0) DurgaSuccessGreen else DurgaWarning,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Emergency Dispatch Connected (112)",
+                                text = if (trustedContactsCount > 0) {
+                                    "$trustedContactsCount Emergency Contacts Ready for SMS Alert"
+                                } else {
+                                    "No Contacts Configured • Direct 112 Dispatch Ready"
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = DurgaTextNavy,
                                     fontSize = 12.sp
@@ -1729,7 +1740,29 @@ fun HomeScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    if (trustedContactsCount > 0) {
+                        Button(
+                            onClick = {
+                                onSendSosAlert()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = DurgaBlueAction),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .minimumInteractiveComponentSize()
+                        ) {
+                            Text(
+                                text = "Send SOS SMS to $trustedContactsCount Contacts",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

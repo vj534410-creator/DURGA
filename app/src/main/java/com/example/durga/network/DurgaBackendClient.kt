@@ -72,12 +72,13 @@ object DurgaBackendClient {
                     val responseJson = JSONObject(response.body?.string() ?: "{}")
                     val serverCaseId = responseJson.optString("caseId", caseEntity.caseId)
                     return@withContext Result.success(serverCaseId)
+                } else {
+                    return@withContext Result.failure(Exception("Server returned HTTP ${response.code}"))
                 }
-            } catch (_: Exception) {
-                // Network unreachable or local mode: Save locally with pending sync
+            } catch (netEx: Exception) {
+                // Return explicit failure so repository accurately preserves offline status
+                return@withContext Result.failure(netEx)
             }
-
-            Result.success(caseEntity.caseId)
         } catch (e: Exception) {
             Result.failure(e)
         }

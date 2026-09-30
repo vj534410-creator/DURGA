@@ -13,6 +13,7 @@ import com.example.durga.model.DraftComplaintEntity
 import com.example.durga.model.EvidenceEntity
 import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
+import com.example.durga.model.TrustedContactEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -173,4 +174,23 @@ interface CaseNotificationDao {
     @Query("DELETE FROM case_notifications")
     suspend fun deleteAllNotifications()
 }
+
+@Dao
+interface TrustedContactDao {
+    @Query("SELECT * FROM trusted_contacts ORDER BY createdAt ASC")
+    fun getAllContacts(): Flow<List<TrustedContactEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertContact(contact: TrustedContactEntity)
+
+    @Update
+    suspend fun updateContact(contact: TrustedContactEntity)
+
+    @Query("DELETE FROM trusted_contacts WHERE id = :id")
+    suspend fun deleteContact(id: String)
+
+    @Query("DELETE FROM trusted_contacts")
+    suspend fun deleteAllContacts()
+}
+
 

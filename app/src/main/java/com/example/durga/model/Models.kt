@@ -88,7 +88,19 @@ data class EvidenceEntity(
     val fileSizeBytes: Long,
     val sha256Checksum: String,
     val isEncryptedLocally: Boolean = true,
+    val encryptedFilePath: String = "",
+    val isEncryptedOnDisk: Boolean = true,
     val isSelectedForSharing: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "trusted_contacts")
+data class TrustedContactEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val phoneNumber: String,
+    val relationship: String = "Family",
+    val isSosActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis()
 )
 

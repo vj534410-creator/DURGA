@@ -1429,7 +1429,9 @@ fun PrivateVaultScreen(
                     Text("ફાઇલ પ્રકાર: ${item.type}", color = colors.textPrimary, fontSize = 13.sp)
                     Text("ફાઇલ સાઇઝ: ${(item.fileSizeBytes / 1024).coerceAtLeast(1)} KB", color = colors.textSecondary, fontSize = 12.sp)
                     Text("SHA-256 Checksum: ${item.sha256Checksum.take(16)}...", color = colors.textSecondary, fontSize = 11.sp)
-                    Text("સ્થિતિ: સુરક્ષિત હાર્ડવેર વૉલ્ટમાં સંગ્રહિત", color = colors.textSecondary, fontSize = 12.sp)
+                    Text("સંગ્રહ: App-Private Internal Storage (context.filesDir)", color = colors.textSecondary, fontSize = 12.sp)
+                    Text("સિસ્ટમ ગેલરી / ફાઇલ મેનેજર એક્સેસ: સંપૂર્ણ પ્રતિબંધિત (0700 + .nomedia)", color = DurgaSuccessGreen, fontSize = 11.sp)
+                    Text("એન્ક્રિપ્શન: AES-256 GCM + EncryptedSharedPreferences", color = colors.textSecondary, fontSize = 11.sp)
                 }
             },
             confirmButton = {
@@ -1437,10 +1439,10 @@ fun PrivateVaultScreen(
                     onClick = {
                         val shareIntent = Intent().apply {
                             action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, "DURGA Encrypted Evidence: ${item.fileName} (${item.type})")
+                            putExtra(Intent.EXTRA_TEXT, "DURGA Encrypted Evidence: ${item.fileName} (${item.type}) [Verified SHA-256: ${item.sha256Checksum.take(16)}...]")
                             type = "text/plain"
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Evidence"))
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Evidence Record"))
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
                 ) {
@@ -1450,7 +1452,10 @@ fun PrivateVaultScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { previewItem = null }) {
+                TextButton(onClick = {
+                    previewItem = null
+                    com.example.durga.database.SecurityVault.purgePreviewCache(context)
+                }) {
                     Text("બંધ કરો", color = colors.textSecondary)
                 }
             },

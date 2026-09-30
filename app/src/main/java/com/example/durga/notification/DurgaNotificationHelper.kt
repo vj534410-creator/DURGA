@@ -34,7 +34,7 @@ object DurgaNotificationHelper {
                 enableLights(true)
                 enableVibration(true)
                 setShowBadge(true)
-                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                lockscreenVisibility = NotificationCompat.VISIBILITY_SECRET
             }
             manager.createNotificationChannel(caseChannel)
 
@@ -47,7 +47,7 @@ object DurgaNotificationHelper {
                 description = "Notifications for new features, security updates, and enhancements in DURGA app"
                 enableLights(true)
                 setShowBadge(true)
-                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                lockscreenVisibility = NotificationCompat.VISIBILITY_SECRET
             }
             manager.createNotificationChannel(updateChannel)
         }
@@ -55,6 +55,9 @@ object DurgaNotificationHelper {
 
     fun postCaseProgressNotification(context: Context, notification: CaseNotificationEntity) {
         initNotificationChannels(context)
+
+        val prefs = context.getSharedPreferences("durga_app_settings", Context.MODE_PRIVATE)
+        val isDiscreetMode = prefs.getBoolean("discreet_notifications_enabled", true)
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -69,21 +72,30 @@ object DurgaNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val actionEmoji = if (notification.isActionTaken) "✅" else "⏳"
-        val actionHeader = if (notification.isActionTaken) "POLICE ACTION TAKEN" else "INVESTIGATION ONGOING"
-
-        val bigText = buildString {
-            append("📌 Case ID: ${notification.caseId}\n")
-            append("📊 Work Completed: ${notification.progressPercent}%\n")
-            append("🛡️ Status: ${notification.stageTitle}\n")
-            append("🚨 Action Status: $actionEmoji $actionHeader\n")
-            append("📝 Details: ${notification.actionDetails}\n")
-            if (notification.officerName.isNotBlank()) append("👮 Officer: ${notification.officerName}\n")
-            if (notification.policeStation.isNotBlank()) append("🏢 Police Station: ${notification.policeStation}")
+        val (title, summaryLine, bigText) = if (isDiscreetMode) {
+            Triple(
+                "System Security & Sync",
+                "Device verification status updated",
+                "DURGA Security Engine: Routine system status verified successfully."
+            )
+        } else {
+            val actionEmoji = if (notification.isActionTaken) "✅" else "⏳"
+            val actionHeader = if (notification.isActionTaken) "OFFICIAL ACTION RECORDED" else "REVIEW IN PROGRESS"
+            val fullDetails = buildString {
+                append("📌 Reference: ${notification.caseId}\n")
+                append("📊 Progress: ${notification.progressPercent}%\n")
+                append("🛡️ Status: ${notification.stageTitle}\n")
+                append("🚨 Action: $actionEmoji $actionHeader\n")
+                append("📝 Details: ${notification.actionDetails}\n")
+                if (notification.officerName.isNotBlank()) append("👮 Officer: ${notification.officerName}\n")
+                if (notification.policeStation.isNotBlank()) append("🏢 Station: ${notification.policeStation}")
+            }
+            Triple(
+                "📋 Case ${notification.caseId} (${notification.progressPercent}%)",
+                "${notification.stageTitle} • $actionEmoji ${notification.actionStatusText}",
+                fullDetails
+            )
         }
-
-        val title = "📋 ${notification.caseId} (${notification.progressPercent}% Done)"
-        val summaryLine = "${notification.stageTitle} • $actionEmoji ${notification.actionStatusText}"
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -92,6 +104,7 @@ object DurgaNotificationHelper {
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setProgress(100, notification.progressPercent, false)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

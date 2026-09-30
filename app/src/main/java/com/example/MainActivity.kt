@@ -84,6 +84,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Protect sensitive domestic safety data and evidence from OS screenshots and recent apps snapshots
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            android.view.WindowManager.LayoutParams.FLAG_SECURE
+        )
         enableEdgeToEdge()
         setContent {
             val currentTheme by viewModel.currentTheme.collectAsState()

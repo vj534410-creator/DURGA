@@ -20,7 +20,7 @@ object GeminiComplaintWriter {
         .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private const val MODEL_NAME = "gemini-3.5-flash"
+    private const val MODEL_NAME = "gemini-2.0-flash"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
     suspend fun generateComplaintDraft(
