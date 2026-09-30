@@ -22,44 +22,54 @@ enum class DurgaThemeMode(
     val titleEn: String,
     val titleGu: String,
     val titleHi: String,
+    val feelingEn: String,
     val primaryColor: Color,
     val accentColor: Color,
+    val haloColor: Color,
     val isDark: Boolean = false
 ) {
-    GREEN(
-        id = "green",
-        titleEn = "Green (Nature & Safety)",
-        titleGu = "ગ્રીન (પ્રકૃતિ અને રક્ષા)",
-        titleHi = "ग्रीन (सुरक्षा और शांति)",
-        primaryColor = Color(0xFF15803D), // Emerald Green
-        accentColor = Color(0xFF22C55E),
+    BLUE(
+        id = "blue",
+        titleEn = "Calm Blue",
+        titleGu = "શાંત બ્લુ (Calm)",
+        titleHi = "शांत ब्लू (Calm)",
+        feelingEn = "Calm • Trustworthy • Peaceful",
+        primaryColor = Color(0xFF1D4ED8), // Royal Blue
+        accentColor = Color(0xFF3B82F6),
+        haloColor = Color(0xFF60A5FA),
         isDark = false
     ),
     BLACK(
         id = "black",
-        titleEn = "Black (Midnight Dark)",
-        titleGu = "બ્લેક (ડાર્ક નાઈટ મોડ)",
-        titleHi = "ब्लैक (डार्क मोड)",
-        primaryColor = Color(0xFF38BDF8), // Crisp high-contrast highlight on dark
+        titleEn = "Strength Black",
+        titleGu = "સુરક્ષિત બ્લેક (Strength)",
+        titleHi = "मजबूत ब्लैक (Strength)",
+        feelingEn = "Strength • Privacy • Focused",
+        primaryColor = Color(0xFF60A5FA), // Crisp high-contrast highlight on dark
         accentColor = Color(0xFFA1A1AA),
+        haloColor = Color(0xFF38BDF8),
         isDark = true
     ),
-    BLUE(
-        id = "blue",
-        titleEn = "Blue (Guardian Royal)",
-        titleGu = "બ્લુ (રક્ષક સુરક્ષા)",
-        titleHi = "ब्लू (रक्षक सुरक्षा)",
-        primaryColor = Color(0xFF1D4ED8), // Royal Blue
-        accentColor = Color(0xFF3B82F6),
+    GREEN(
+        id = "green",
+        titleEn = "Safety Green",
+        titleGu = "સુરક્ષા ગ્રીન (Safety)",
+        titleHi = "सुरक्षा ग्रीन (Safety)",
+        feelingEn = "Safety • Balance • Reassurance",
+        primaryColor = Color(0xFF15803D), // Emerald Green
+        accentColor = Color(0xFF22C55E),
+        haloColor = Color(0xFF86EFAC),
         isDark = false
     ),
     PINK(
         id = "pink",
-        titleEn = "Pink (Deep Rani Pink)",
-        titleGu = "પિંક (રાણી ગુલાબી / નારી શક્તિ)",
-        titleHi = "पिंक (रानी गुलाबी / नारी शक्ति)",
+        titleEn = "Courage Pink",
+        titleGu = "હિંમત પિંક (Courage)",
+        titleHi = "साहस पिंक (Courage)",
+        feelingEn = "Courage • Warmth • Women Power",
         primaryColor = Color(0xFFD81B60), // Vibrant Women Empowerment Magenta Pink
         accentColor = Color(0xFFEC4899),
+        haloColor = Color(0xFFF9A8D4),
         isDark = false
     ),
     ROSE_PINK(
@@ -67,8 +77,10 @@ enum class DurgaThemeMode(
         titleEn = "Rose Pink (Soft Blossom)",
         titleGu = "રોઝ પિંક (કમળ સોફ્ટ ગુલાબી)",
         titleHi = "रोज़ पिंक (कोमल कमल गुलाबी)",
+        feelingEn = "Soft Blossom & Gentle Support",
         primaryColor = Color(0xFFF43F5E), // Vibrant Rose Blossom Pink
         accentColor = Color(0xFFFDA4AF),
+        haloColor = Color(0xFFFECDD3),
         isDark = false
     ),
     PURPLE(
@@ -76,8 +88,10 @@ enum class DurgaThemeMode(
         titleEn = "Purple (Royal Dignity)",
         titleGu = "પર્પલ (શાહી શક્તિ)",
         titleHi = "पर्पल (રॉयल गरिमा)",
+        feelingEn = "Royal Dignity & Protection",
         primaryColor = Color(0xFF7C3AED), // Royal Violet
         accentColor = Color(0xFF8B5CF6),
+        haloColor = Color(0xFFC4B5FD),
         isDark = false
     )
 }
@@ -94,6 +108,7 @@ data class DurgaCustomColors(
     val textSecondary: Color,
     val textMuted: Color,
     val isDark: Boolean,
+    val haloColor: Color = Color(0xFF60A5FA),
     val accentRose: Color = Color(0xFFBE185D),
     val navyDeep: Color = Color(0xFF0F172A),
     val lavenderLight: Color = Color(0xFFFDF2F8)
@@ -120,7 +135,8 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFF14532D),
             textSecondary = Color(0xFF4B6351),
             textMuted = Color(0xFF869E8C),
-            isDark = false
+            isDark = false,
+            haloColor = mode.haloColor
         )
         DurgaThemeMode.BLACK -> DurgaCustomColors(
             primary = Color(0xFF60A5FA),
@@ -133,7 +149,8 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFFF4F4F5),
             textSecondary = Color(0xFFA1A1AA),
             textMuted = Color(0xFF71717A),
-            isDark = true
+            isDark = true,
+            haloColor = mode.haloColor
         )
         DurgaThemeMode.BLUE -> DurgaCustomColors(
             primary = Color(0xFF1D4ED8),
@@ -146,7 +163,8 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFF172033),
             textSecondary = Color(0xFF64748B),
             textMuted = Color(0xFF94A3B8),
-            isDark = false
+            isDark = false,
+            haloColor = mode.haloColor
         )
         DurgaThemeMode.PINK -> DurgaCustomColors(
             primary = Color(0xFFD81B60),
@@ -159,7 +177,8 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFF4A0E2E),
             textSecondary = Color(0xFF833857),
             textMuted = Color(0xFFA8637F),
-            isDark = false
+            isDark = false,
+            haloColor = mode.haloColor
         )
         DurgaThemeMode.ROSE_PINK -> DurgaCustomColors(
             primary = Color(0xFFE11D48),
@@ -172,7 +191,8 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFF881337),
             textSecondary = Color(0xFF9F1239),
             textMuted = Color(0xFFBE123C),
-            isDark = false
+            isDark = false,
+            haloColor = mode.haloColor
         )
         DurgaThemeMode.PURPLE -> DurgaCustomColors(
             primary = Color(0xFF7C3AED),
@@ -185,7 +205,8 @@ fun getDurgaCustomColors(mode: DurgaThemeMode): DurgaCustomColors {
             textPrimary = Color(0xFF2E1065),
             textSecondary = Color(0xFF6D28D9),
             textMuted = Color(0xFF9F75E8),
-            isDark = false
+            isDark = false,
+            haloColor = mode.haloColor
         )
     }
 }

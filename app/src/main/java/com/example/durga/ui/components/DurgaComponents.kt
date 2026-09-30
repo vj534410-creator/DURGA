@@ -1,6 +1,12 @@
 package com.example.durga.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -543,6 +549,54 @@ fun ThemeSelectionDialog(
             }
         }
     )
+}
+
+/**
+ * DURGA HALO (Phase 12):
+ * A subtle, protective circular aura or gentle ring around key identity components
+ * (such as the Home SOS trigger, Evidence Vault shield emblem, and header insignia).
+ * Communicates: Protection, Calmness, and Strength with zero performance overhead.
+ */
+@Composable
+fun DurgaHalo(
+    modifier: Modifier = Modifier,
+    haloColor: Color = LocalDurgaColors.current.haloColor,
+    strokeWidth: androidx.compose.ui.unit.Dp = 2.dp,
+    diameter: androidx.compose.ui.unit.Dp = 180.dp,
+    content: @Composable () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "durga_halo_pulse")
+    val haloPulse by infiniteTransition.animateFloat(
+        initialValue = 0.20f,
+        targetValue = 0.50f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "durga_halo_alpha"
+    )
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .size(diameter)
+                .border(
+                    width = strokeWidth,
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            haloColor.copy(alpha = haloPulse),
+                            haloColor.copy(alpha = haloPulse * 0.35f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        content()
+    }
 }
 
 enum class DurgaBadgeType {

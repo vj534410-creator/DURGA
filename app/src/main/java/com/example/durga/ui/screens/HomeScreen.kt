@@ -590,6 +590,23 @@ fun HomeScreen(
                             ),
                             textAlign = TextAlign.Center
                         )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Phase 13 Supportive Microcopy
+                        Text(
+                            text = when (currentLanguage) {
+                                DurgaLanguage.GUJARATI -> "શાંત રહો. એક પગલું આગળ વધો."
+                                DurgaLanguage.HINDI -> "शांत रहें। एक कदम आगे बढ़ें।"
+                                else -> "Take the next step. You are safe & supported."
+                            },
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.Normal,
+                                color = colors.textSecondary,
+                                fontSize = if (isAccessibilityLargeText) 13.sp else 11.5.sp
+                            ),
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }
