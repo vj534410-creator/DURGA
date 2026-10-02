@@ -10,4 +10,6 @@
     <string name="shortcut_help_near_me_long">Emergency Help Centers Near Me</string>
     <string name="shortcut_lock_vault_short">Lock Evidence</string>
     <string name="shortcut_lock_vault_long">Securely Lock Evidence Vault</string>
+    <string name="shortcut_capture_short">Capture Evidence</string>
+    <string name="shortcut_capture_long">Direct Evidence Capture</string>
 </resources>

@@ -30,6 +30,7 @@ import com.example.durga.ui.screens.AiComplaintDraftScreen
 import com.example.durga.ui.screens.AuthorityAdminDashboardScreen
 import com.example.durga.ui.screens.CaseCreatedScreen
 import com.example.durga.ui.screens.CaseDetailsScreen
+import com.example.durga.ui.screens.CaptureEvidenceScreen
 import com.example.durga.ui.screens.CaseNotificationsScreen
 import com.example.durga.ui.screens.ChildFriendlyScreen
 import com.example.durga.ui.screens.ComplainantDetailsScreen
@@ -82,6 +83,7 @@ object DurgaRoutes {
     const val WEB_PORTALS = "web_portals"
     const val CASE_NOTIFICATIONS = "case_notifications"
     const val SETTINGS = "settings"
+    const val CAPTURE_EVIDENCE = "capture_evidence"
 }
 
 class MainActivity : ComponentActivity() {
@@ -183,6 +185,9 @@ fun DurgaApp(
                         popUpTo(DurgaRoutes.HOME) { inclusive = true }
                     }
                 }
+                "ACTION_CAPTURE_EVIDENCE" -> {
+                    navController.navigate(DurgaRoutes.CAPTURE_EVIDENCE)
+                }
             }
         }
     }
@@ -252,6 +257,9 @@ fun DurgaApp(
                         },
                         onNavigateToEmergencyContacts = {
                             navController.navigate(DurgaRoutes.EMERGENCY_CONTACTS)
+                        },
+                        onNavigateToCaptureEvidence = { initialMode ->
+                            navController.navigate(DurgaRoutes.CAPTURE_EVIDENCE)
                         },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
@@ -558,6 +566,10 @@ fun DurgaApp(
                         },
                         onDeleteEvidenceItem = { viewModel.deleteEvidenceFromVault(it) },
                         onDeleteDraft = { viewModel.deleteDraft(it) },
+                        onCreateComplaintFromEvidence = { evidence ->
+                            viewModel.startComplaintWithCapturedEvidence(evidence)
+                            navController.navigate(DurgaRoutes.COMPLAINT_INPUT)
+                        },
                         onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() },
@@ -793,6 +805,40 @@ fun DurgaApp(
                             navController.popBackStack(DurgaRoutes.HOME, inclusive = false)
                         }
                     }
+                }
+
+                // 27. Direct In-App Evidence Capture (Photo • Video • Audio)
+                composable(DurgaRoutes.CAPTURE_EVIDENCE) {
+                    val context = LocalContext.current
+                    CaptureEvidenceScreen(
+                        currentLanguage = currentLang,
+                        initialMode = "PHOTO",
+                        onSaveEvidence = { file, type, locDesc, lat, lng ->
+                            viewModel.saveCapturedEvidenceSync(
+                                context = context,
+                                file = file,
+                                type = type,
+                                locationDescription = locDesc,
+                                latitude = lat,
+                                longitude = lng
+                            )
+                        },
+                        onCreateComplaintWithEvidence = { evidence, category, locDesc, lat, lng, notes ->
+                            viewModel.startComplaintWithCapturedEvidence(
+                                evidence = evidence,
+                                category = category,
+                                location = locDesc,
+                                latitude = lat,
+                                longitude = lng,
+                                rawNotes = notes
+                            )
+                            navController.navigate(DurgaRoutes.COMPLAINT_INPUT)
+                        },
+                        onBack = { navController.popBackStack() },
+                        onLanguageChange = { viewModel.setLanguage(it) },
+                        onQuickExit = { viewModel.triggerQuickExit() },
+                        onOpenVault = { navController.navigate(DurgaRoutes.PRIVATE_VAULT) }
+                    )
                 }
             }
 

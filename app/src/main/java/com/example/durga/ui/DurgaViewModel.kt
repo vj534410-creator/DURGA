@@ -423,6 +423,112 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
         addEvidenceItem(type, name, uri, sizeBytes)
     }
 
+    /**
+     * Direct In-App Evidence Capture:
+     * Saves raw captured photo, video, or audio from private temp file directly into
+     * AES-256 GCM encrypted app-private internal storage (.nomedia isolated).
+     * Deletes the original plain temporary file immediately.
+     * Inserts into Room DB and registers audit trail.
+     */
+    fun saveCapturedEvidenceSync(
+        context: Context,
+        file: File,
+        type: String,
+        locationDescription: String = "",
+        latitude: Double = 0.0,
+        longitude: Double = 0.0
+    ): EvidenceEntity? {
+        val timeMillis = System.currentTimeMillis()
+        val ext = when (type.uppercase()) {
+            "PHOTO", "IMAGE" -> "jpg"
+            "VIDEO" -> "mp4"
+            "AUDIO" -> "m4a"
+            else -> "bin"
+        }
+        val safeFileName = "capture_${timeMillis}.$ext"
+        val result = SecurityVault.encryptAndStoreEvidence(context, Uri.fromFile(file), safeFileName)
+
+        // Secure cleanup of original unencrypted temp file
+        try {
+            if (file.exists()) {
+                file.delete()
+            }
+        } catch (_: Exception) {}
+
+        if (result != null) {
+            val (encPath, sizeBytes, sha256) = result
+            val entity = EvidenceEntity(
+                id = UUID.randomUUID().toString(),
+                caseId = _currentDraft.value.draftId,
+                type = type.uppercase(),
+                fileName = safeFileName,
+                localUri = Uri.fromFile(File(encPath)).toString(),
+                encryptedFilePath = encPath,
+                isEncryptedOnDisk = true,
+                mimeType = when (type.uppercase()) {
+                    "PHOTO", "IMAGE" -> "image/jpeg"
+                    "VIDEO" -> "video/mp4"
+                    "AUDIO" -> "audio/m4a"
+                    else -> "application/octet-stream"
+                },
+                fileSizeBytes = sizeBytes,
+                sha256Checksum = sha256,
+                isEncryptedLocally = true,
+                isSelectedForSharing = true,
+                createdAt = timeMillis
+            )
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.insertEvidence(entity)
+                repository.insertAuditLog(
+                    caseId = _currentDraft.value.draftId,
+                    authorityId = "USER",
+                    role = "COMPLAINANT",
+                    action = "EVIDENCE_CAPTURED",
+                    reason = "Direct in-app capture: $type ($sizeBytes bytes)"
+                )
+            }
+            return entity
+        }
+        return null
+    }
+
+    /**
+     * RECORD & REPORT Flow:
+     * Links captured evidence automatically to a brand new complaint draft,
+     * pre-filling timestamp, GPS location, incident category, and optional notes.
+     */
+    fun startComplaintWithCapturedEvidence(
+        evidence: EvidenceEntity,
+        category: IncidentCategory = IncidentCategory.PUBLIC_CITY,
+        location: String = "",
+        latitude: Double = 0.0,
+        longitude: Double = 0.0,
+        rawNotes: String = ""
+    ) {
+        val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+        val draftId = UUID.randomUUID().toString()
+
+        _currentDraft.value = DraftComplaintEntity(
+            draftId = draftId,
+            category = category.name,
+            rawNotes = rawNotes,
+            incidentDate = currentDate,
+            incidentTime = currentTime,
+            incidentLocation = location.ifBlank { "Current Location" },
+            latitude = latitude,
+            longitude = longitude,
+            isWitness = false
+        )
+        val linkedEvidence = evidence.copy(caseId = draftId)
+        _attachedEvidence.value = listOf(linkedEvidence)
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertEvidence(linkedEvidence)
+        }
+        _aiDraftResult.value = null
+        _submissionState.value = SubmissionState.Idle
+    }
+
     // --- ENCRYPTED EMERGENCY CONTACTS & ONE-TAP SOS ASSISTANCE SYSTEM ---
 
     fun addEmergencyContact(name: String, phone: String, relation: String = "Family", isWhatsAppAvailable: Boolean = true): Pair<Boolean, String?> {

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Image
@@ -662,6 +663,7 @@ fun PrivateVaultScreen(
     onAddEvidenceItem: (type: String, name: String, uri: String, sizeBytes: Long) -> Unit,
     onDeleteEvidenceItem: (String) -> Unit,
     onDeleteDraft: (String) -> Unit,
+    onCreateComplaintFromEvidence: ((EvidenceEntity) -> Unit)? = null,
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
@@ -1254,6 +1256,21 @@ fun PrivateVaultScreen(
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Create Complaint from this Evidence
+                                    if (onCreateComplaintFromEvidence != null) {
+                                        IconButton(
+                                            onClick = { onCreateComplaintFromEvidence(item) },
+                                            modifier = Modifier.minimumInteractiveComponentSize()
+                                        ) {
+                                            Icon(
+                                                Icons.Default.EditNote,
+                                                contentDescription = "Create Complaint",
+                                                tint = colors.primary,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+
                                     // Preview / View Details
                                     IconButton(
                                         onClick = { previewItem = item },

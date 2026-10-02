@@ -68,4 +68,21 @@
                 android:value="ACTION_LOCK_EVIDENCE" />
         </intent>
     </shortcut>
+
+    <!-- 5. Direct Capture Evidence Shortcut -->
+    <shortcut
+        android:shortcutId="capture_evidence"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_capture"
+        android:shortcutShortLabel="@string/shortcut_capture_short"
+        android:shortcutLongLabel="@string/shortcut_capture_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.aistudio.durga.safety"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_SHORTCUT_ACTION"
+                android:value="ACTION_CAPTURE_EVIDENCE" />
+        </intent>
+    </shortcut>
 </shortcuts>
