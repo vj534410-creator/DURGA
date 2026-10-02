@@ -64,6 +64,12 @@ data class CaseEntity(
     val complainantMobile: String = "",
     val sharedItemsSummary: String = "Complaint, Location",
     val secureToken: String = UUID.randomUUID().toString(),
+    val policeStation: String = "",
+    val policeDistrict: String = "",
+    val assignedInspector: String = "",
+    val investigatingOfficer: String = "",
+    val assignedAt: Long = 0L,
+    val latestAuthorityNote: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val isSubmittedToServer: Boolean = false,
@@ -217,3 +223,39 @@ data class CaseNotificationEntity(
     val notificationType: String = "CASE_UPDATE", // "CASE_UPDATE", "APP_FEATURE", "SYSTEM_UPDATE"
     val targetRoute: String = "" // e.g. "web_portals", "emergency", "private_vault", "case_details"
 )
+
+data class VerifiedCaseRecord(
+    val caseId: String,
+    val status: String,
+    val category: String,
+    val title: String,
+    val summary: String,
+    val incidentDate: String,
+    val incidentTime: String,
+    val incidentLocation: String,
+    val createdAt: Long,
+    val submittedAt: Long,
+    val policeStation: String? = null,
+    val district: String? = null,
+    val assignedInspector: String? = null,
+    val investigatingOfficer: String? = null,
+    val assignedAt: Long? = null,
+    val photoCount: Int = 0,
+    val videoCount: Int = 0,
+    val audioCount: Int = 0,
+    val documentCount: Int = 0,
+    val totalEvidenceCount: Int = 0,
+    val timeline: List<VerifiedTimelineEvent> = emptyList(),
+    val secureToken: String = "",
+    val isQrActive: Boolean = true
+)
+
+data class VerifiedTimelineEvent(
+    val id: String,
+    val title: String,
+    val description: String,
+    val actorName: String,
+    val actorRole: String,
+    val timestamp: Long
+)
+

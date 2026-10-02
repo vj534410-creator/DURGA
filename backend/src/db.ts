@@ -39,6 +39,12 @@ export interface ComplaintRecord {
   is_witness_report: boolean;
   current_status: string;
   priority?: string; // NORMAL, HIGH, URGENT, EMERGENCY
+  police_station?: string;
+  police_district?: string;
+  assigned_inspector?: string;
+  investigating_officer?: string;
+  assigned_at?: string;
+  qr_active?: boolean;
   assigned_officer_id?: string;
   assigned_officer_name?: string;
   evidence_count: number;

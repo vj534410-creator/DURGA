@@ -26,7 +26,7 @@ import com.example.durga.model.TrustedContactEntity
         CaseNotificationEntity::class,
         TrustedContactEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class DurgaDatabase : RoomDatabase() {

@@ -149,13 +149,52 @@ router.get('/', (req: Request, res: Response): void => {
 
 // GET /cases/lookup/qr - Fast QR Code / Secure Code Case Verification
 router.get('/lookup/qr', (req: Request, res: Response): void => {
-  const { code } = req.query;
+  handleQrLookup(req, res, String(req.query.code || ''));
+});
+
+// GET /cases/secure/:token - Route matching /case/secure/<token>
+router.get('/secure/:token', (req: Request, res: Response): void => {
+  handleQrLookup(req, res, String(req.params.token || ''));
+});
+
+// POST /cases/revoke-qr - Revoke / Deactivate a Case QR token
+router.post('/revoke-qr', (req: Request, res: Response): void => {
+  const { code } = req.body;
   if (!code) {
-    res.status(400).json({ success: false, error: 'Case QR / Code is required' });
+    res.status(400).json({ success: false, error: 'Token or Case ID is required' });
+    return;
+  }
+  const cleanCode = String(code).trim();
+  const complaint = Array.from(db.complaints.values()).find(
+    c => c.complaint_ref_no.equalsIgnoreCase(cleanCode) ||
+         c.secure_token === cleanCode ||
+         c.id === cleanCode
+  );
+  if (!complaint) {
+    res.status(404).json({ success: false, error: 'Case record not found.' });
+    return;
+  }
+  complaint.qr_active = false;
+  AuditService.record('CASE_QR_REVOKED', 'COMPLAINT', complaint.id, { code: cleanCode }, undefined, undefined, req.ip);
+  res.json({ success: true, message: 'Case QR has been deactivated successfully', caseId: complaint.complaint_ref_no });
+});
+
+function handleQrLookup(req: Request, res: Response, rawCode: string): void {
+  if (!rawCode || rawCode.trim() === '') {
+    res.status(400).json({ success: false, error: 'Invalid DURGA Case QR', code: 'INVALID_QR' });
     return;
   }
 
-  const cleanCode = String(code).trim();
+  // Strip standard prefixes if QR encoded full URL or path
+  let cleanCode = rawCode.trim();
+  const prefixes = ['https://durga.gov.in/case/secure/', 'durga://case/secure/', '/case/secure/'];
+  for (const prefix of prefixes) {
+    if (cleanCode.startsWith(prefix)) {
+      cleanCode = cleanCode.substring(prefix.length).trim();
+      break;
+    }
+  }
+
   const complaint = Array.from(db.complaints.values()).find(
     c => c.complaint_ref_no.equalsIgnoreCase(cleanCode) ||
          c.secure_token === cleanCode ||
@@ -163,9 +202,26 @@ router.get('/lookup/qr', (req: Request, res: Response): void => {
   );
 
   if (!complaint) {
-    res.status(404).json({ success: false, error: 'Invalid or expired Case QR Code. No incident docket found.' });
+    res.status(404).json({ success: false, error: 'Case record not found.', code: 'CASE_NOT_FOUND' });
     return;
   }
+
+  if (complaint.qr_active === false) {
+    res.status(403).json({ success: false, error: 'This Case QR is no longer active.', code: 'QR_DEACTIVATED' });
+    return;
+  }
+
+  const timelineEvents = db.timeline
+    .filter(t => t.case_id === complaint.id)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  const caseEvidence = Array.from(db.evidence.values())
+    .filter(e => e.complaint_id === complaint.id || e.case_ref === complaint.complaint_ref_no);
+
+  const photoCount = caseEvidence.filter(e => e.file_type === 'PHOTO').length;
+  const videoCount = caseEvidence.filter(e => e.file_type === 'VIDEO').length;
+  const audioCount = caseEvidence.filter(e => e.file_type === 'AUDIO').length;
+  const docCount = caseEvidence.filter(e => e.file_type === 'DOCUMENT' || e.file_type === 'SCREENSHOT').length;
 
   AuditService.record('CASE_QR_VERIFIED', 'COMPLAINT', complaint.id, { code: cleanCode }, undefined, undefined, req.ip);
 
@@ -173,13 +229,31 @@ router.get('/lookup/qr', (req: Request, res: Response): void => {
     success: true,
     caseId: complaint.complaint_ref_no,
     status: complaint.current_status,
-    title: complaint.title,
     category: complaint.category_id,
+    title: complaint.title,
+    summary: complaint.structured_description || complaint.original_description || complaint.title,
     incidentDate: complaint.incident_date,
-    incidentLocation: complaint.incident_location,
-    evidenceLocked: complaint.locked
+    incidentTime: complaint.incident_time,
+    incidentLocation: complaint.incident_location || 'Not provided',
+    createdAt: complaint.created_at,
+    submittedAt: complaint.created_at,
+    policeStation: complaint.police_station || (complaint.assigned_officer_name ? 'Central Mahila Police Station' : null),
+    district: complaint.police_district || (complaint.assigned_officer_name ? 'Gandhinagar' : null),
+    assignedInspector: complaint.assigned_inspector || (complaint.assigned_officer_name ? complaint.assigned_officer_name : null),
+    investigatingOfficer: complaint.investigating_officer || null,
+    assignedAt: complaint.assigned_at || null,
+    evidenceSummary: {
+      photoCount,
+      videoCount,
+      audioCount,
+      documentCount: docCount,
+      totalCount: complaint.evidence_count || caseEvidence.length
+    },
+    timeline: timelineEvents,
+    secureToken: complaint.secure_token,
+    isQrActive: true
   });
-});
+}
 
 // Helper for case-insensitive matching
 declare global {

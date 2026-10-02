@@ -205,6 +205,52 @@ class DurgaRepository(private val context: Context) {
 
     fun getCaseUpdates(caseId: String): Flow<List<CaseUpdateEntity>> = caseUpdateDao.getUpdatesForCase(caseId)
 
+    suspend fun getCaseBySecureToken(token: String): CaseEntity? = withContext(Dispatchers.IO) {
+        caseDao.getCaseBySecureToken(token)
+    }
+
+    suspend fun assignAuthorityToCase(
+        caseId: String,
+        station: String,
+        district: String,
+        inspector: String,
+        officer: String,
+        newStatus: String,
+        note: String
+    ) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        caseDao.assignAuthorityToCase(
+            caseId = caseId,
+            station = station,
+            district = district,
+            inspector = inspector,
+            officer = officer,
+            newStatus = newStatus,
+            note = note,
+            assignedAt = now,
+            timestamp = now
+        )
+        caseUpdateDao.insertUpdate(
+            CaseUpdateEntity(
+                caseId = caseId,
+                status = newStatus,
+                message = "Assigned to $station. Assigned Inspector: $inspector. Investigator: $officer. $note",
+                updatedBy = "Inspector $inspector",
+                timestamp = now
+            )
+        )
+        auditDao.insertLog(
+            AuditAccessLogEntity(
+                caseId = caseId,
+                authorityId = inspector,
+                role = "INSPECTOR",
+                action = "POLICE_STATION_ASSIGNED",
+                reason = "Station: $station, District: $district, Inspector: $inspector",
+                timestamp = now
+            )
+        )
+    }
+
     // --- Drafts ---
     val allDrafts: Flow<List<DraftComplaintEntity>> = draftDao.getAllDrafts()
 

@@ -116,6 +116,8 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 // API Routes
+app.use('/case', casesRoutes);
+app.use('/cases', casesRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/cases', casesRoutes);
 app.use('/api/officers', officersRoutes);

@@ -24,6 +24,9 @@ interface CaseDao {
     @Query("SELECT * FROM cases WHERE caseId = :caseId")
     suspend fun getCaseById(caseId: String): CaseEntity?
 
+    @Query("SELECT * FROM cases WHERE secureToken = :token LIMIT 1")
+    suspend fun getCaseBySecureToken(token: String): CaseEntity?
+
     @Query("SELECT * FROM cases WHERE caseId = :caseId")
     fun observeCaseById(caseId: String): Flow<CaseEntity?>
 
@@ -35,6 +38,19 @@ interface CaseDao {
 
     @Query("UPDATE cases SET status = :newStatus, updatedAt = :timestamp WHERE caseId = :caseId")
     suspend fun updateCaseStatus(caseId: String, newStatus: String, timestamp: Long = System.currentTimeMillis())
+
+    @Query("UPDATE cases SET policeStation = :station, policeDistrict = :district, assignedInspector = :inspector, investigatingOfficer = :officer, status = :newStatus, latestAuthorityNote = :note, assignedAt = :assignedAt, updatedAt = :timestamp WHERE caseId = :caseId")
+    suspend fun assignAuthorityToCase(
+        caseId: String,
+        station: String,
+        district: String,
+        inspector: String,
+        officer: String,
+        newStatus: String,
+        note: String,
+        assignedAt: Long = System.currentTimeMillis(),
+        timestamp: Long = System.currentTimeMillis()
+    )
 
     @Query("DELETE FROM cases WHERE caseId = :caseId")
     suspend fun deleteCase(caseId: String)

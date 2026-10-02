@@ -5,6 +5,9 @@ import com.example.durga.model.CaseEntity
 import com.example.durga.model.CaseStatus
 import com.example.durga.model.CaseUpdateEntity
 import com.example.durga.model.OfficialServiceEntity
+import com.example.durga.model.VerifiedCaseRecord
+import com.example.durga.model.VerifiedTimelineEvent
+import com.example.durga.util.CaseQrHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -79,6 +82,95 @@ object DurgaBackendClient {
                 // Return explicit failure so repository accurately preserves offline status
                 return@withContext Result.failure(netEx)
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun verifyCaseQrToken(tokenOrCode: String): Result<VerifiedCaseRecord> = withContext(Dispatchers.IO) {
+        try {
+            val cleanCode = CaseQrHelper.extractTokenFromQr(tokenOrCode) ?: tokenOrCode.trim()
+            if (cleanCode.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("Invalid DURGA Case QR"))
+            }
+
+            val url = "$DEFAULT_BACKEND_URL/cases/lookup/qr?code=${java.net.URLEncoder.encode(cleanCode, "UTF-8")}"
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            val response = try {
+                client.newCall(request).execute()
+            } catch (netEx: Exception) {
+                return@withContext Result.failure(netEx)
+            }
+
+            val bodyString = response.body?.string() ?: "{}"
+            val json = JSONObject(bodyString)
+
+            if (response.code == 403 || json.optString("code") == "QR_DEACTIVATED") {
+                return@withContext Result.failure(IllegalStateException("This Case QR is no longer active."))
+            }
+
+            if (response.code == 404 || json.optString("code") == "CASE_NOT_FOUND") {
+                return@withContext Result.failure(NoSuchElementException("Case record not found."))
+            }
+
+            if (!response.isSuccessful || !json.optBoolean("success", false)) {
+                val errorMsg = json.optString("error", "Invalid DURGA Case QR")
+                return@withContext Result.failure(Exception(errorMsg))
+            }
+
+            val evSummary = json.optJSONObject("evidenceSummary")
+            val timelineArray = json.optJSONArray("timeline") ?: JSONArray()
+            val timelineList = mutableListOf<VerifiedTimelineEvent>()
+            for (i in 0 until timelineArray.length()) {
+                val item = timelineArray.optJSONObject(i) ?: continue
+                val tsStr = item.optString("timestamp")
+                val parsedTs = try {
+                    java.time.Instant.parse(tsStr).toEpochMilli()
+                } catch (_: Exception) {
+                    System.currentTimeMillis()
+                }
+                timelineList.add(
+                    VerifiedTimelineEvent(
+                        id = item.optString("id", UUID.randomUUID().toString()),
+                        title = item.optString("title", "Official Event"),
+                        description = item.optString("description", ""),
+                        actorName = item.optString("actor_name", "Authority Officer"),
+                        actorRole = item.optString("actor_role", "AUTHORITY"),
+                        timestamp = parsedTs
+                    )
+                )
+            }
+
+            val verified = VerifiedCaseRecord(
+                caseId = json.optString("caseId"),
+                status = json.optString("status", "SUBMITTED"),
+                category = json.optString("category", "General Safety"),
+                title = json.optString("title", "Safety Incident Complaint"),
+                summary = json.optString("summary", ""),
+                incidentDate = json.optString("incidentDate", ""),
+                incidentTime = json.optString("incidentTime", ""),
+                incidentLocation = json.optString("incidentLocation", "Not provided"),
+                createdAt = System.currentTimeMillis(),
+                submittedAt = System.currentTimeMillis(),
+                policeStation = json.optString("policeStation").takeIf { it.isNotBlank() && it != "null" },
+                district = json.optString("district").takeIf { it.isNotBlank() && it != "null" },
+                assignedInspector = json.optString("assignedInspector").takeIf { it.isNotBlank() && it != "null" },
+                investigatingOfficer = json.optString("investigatingOfficer").takeIf { it.isNotBlank() && it != "null" },
+                photoCount = evSummary?.optInt("photoCount", 0) ?: 0,
+                videoCount = evSummary?.optInt("videoCount", 0) ?: 0,
+                audioCount = evSummary?.optInt("audioCount", 0) ?: 0,
+                documentCount = evSummary?.optInt("documentCount", 0) ?: 0,
+                totalEvidenceCount = evSummary?.optInt("totalCount", 0) ?: 0,
+                timeline = timelineList,
+                secureToken = json.optString("secureToken", cleanCode),
+                isQrActive = json.optBoolean("isQrActive", true)
+            )
+
+            Result.success(verified)
         } catch (e: Exception) {
             Result.failure(e)
         }
