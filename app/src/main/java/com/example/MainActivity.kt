@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,7 +37,9 @@ import com.example.durga.ui.screens.ComplaintCategoryScreen
 import com.example.durga.ui.screens.ComplaintInputScreen
 import com.example.durga.ui.screens.DurgaWebPortalsScreen
 import com.example.durga.ui.screens.EditComplaintScreen
+import com.example.durga.ui.screens.EmergencyContactsScreen
 import com.example.durga.ui.screens.EmergencyScreen
+import com.example.durga.ui.screens.EmergencyStatusScreen
 import com.example.durga.ui.screens.EvidenceSelectionScreen
 import com.example.durga.ui.screens.FinalConfirmationScreen
 import com.example.durga.ui.screens.HelpNearMeScreen
@@ -55,6 +58,8 @@ object DurgaRoutes {
     const val LANGUAGE_SELECT = "language_select"
     const val HOME = "home"
     const val EMERGENCY = "emergency"
+    const val EMERGENCY_CONTACTS = "emergency_contacts"
+    const val EMERGENCY_STATUS = "emergency_status"
     const val COMPLAINT_CATEGORIES = "complaint_categories"
     const val COMPLAINT_INPUT = "complaint_input"
     const val AI_COMPLAINT_DRAFT = "ai_complaint_draft"
@@ -99,6 +104,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
 }
 
 @Composable
@@ -138,6 +148,9 @@ fun DurgaApp(
     val unreadNotificationsCount by viewModel.unreadNotificationsCount.collectAsState()
     val notificationFilter by viewModel.notificationFilter.collectAsState()
 
+    val emergencyContacts by viewModel.emergencyContacts.collectAsState()
+    val activeSosSession by viewModel.activeSosSession.collectAsState()
+
     val activityContext = LocalContext.current as? ComponentActivity
     LaunchedEffect(activityContext?.intent) {
         val target = activityContext?.intent?.getStringExtra("NAVIGATE_TO")
@@ -147,6 +160,30 @@ fun DurgaApp(
                 viewModel.selectCase(targetCaseId)
             }
             navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS)
+        }
+
+        val shortcutAction = activityContext?.intent?.getStringExtra("EXTRA_SHORTCUT_ACTION")
+        if (shortcutAction != null) {
+            when (shortcutAction) {
+                "ACTION_SOS" -> {
+                    activityContext?.let { ctx ->
+                        viewModel.triggerOneTapSos(ctx, isSilentMode = false)
+                        navController.navigate(DurgaRoutes.EMERGENCY_STATUS)
+                    }
+                }
+                "ACTION_NEW_COMPLAINT" -> {
+                    navController.navigate(DurgaRoutes.COMPLAINT_CATEGORIES)
+                }
+                "ACTION_HELP_NEAR_ME" -> {
+                    navController.navigate(DurgaRoutes.HELP_NEAR_ME)
+                }
+                "ACTION_LOCK_EVIDENCE" -> {
+                    viewModel.lockVault()
+                    navController.navigate(DurgaRoutes.HOME) {
+                        popUpTo(DurgaRoutes.HOME) { inclusive = true }
+                    }
+                }
+            }
         }
     }
 
@@ -201,6 +238,21 @@ fun DurgaApp(
                             viewModel.startNewComplaint(category, isWitness = false)
                             navController.navigate(DurgaRoutes.COMPLAINT_INPUT)
                         },
+                        onTriggerOneTapSos = {
+                            activityContext?.let { ctx ->
+                                viewModel.triggerOneTapSos(ctx, isSilentMode = false)
+                                navController.navigate(DurgaRoutes.EMERGENCY_STATUS)
+                            }
+                        },
+                        onTriggerSilentSos = {
+                            activityContext?.let { ctx ->
+                                viewModel.triggerOneTapSos(ctx, isSilentMode = true)
+                                navController.navigate(DurgaRoutes.EMERGENCY_STATUS)
+                            }
+                        },
+                        onNavigateToEmergencyContacts = {
+                            navController.navigate(DurgaRoutes.EMERGENCY_CONTACTS)
+                        },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
                 }
@@ -213,6 +265,21 @@ fun DurgaApp(
                         onBack = { navController.popBackStack() },
                         onCallNumber = onCall,
                         onLanguageChange = { viewModel.setLanguage(it) },
+                        onTriggerOneTapSos = {
+                            activityContext?.let { ctx ->
+                                viewModel.triggerOneTapSos(ctx, isSilentMode = false)
+                                navController.navigate(DurgaRoutes.EMERGENCY_STATUS)
+                            }
+                        },
+                        onTriggerSilentSos = {
+                            activityContext?.let { ctx ->
+                                viewModel.triggerOneTapSos(ctx, isSilentMode = true)
+                                navController.navigate(DurgaRoutes.EMERGENCY_STATUS)
+                            }
+                        },
+                        onNavigateToEmergencyContacts = {
+                            navController.navigate(DurgaRoutes.EMERGENCY_CONTACTS)
+                        },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
                 }
@@ -526,6 +593,8 @@ fun DurgaApp(
                         },
                         onBack = { navController.popBackStack() },
                         onQuickExit = { viewModel.triggerQuickExit() },
+                        onNavigateToEmergencyContacts = { navController.navigate(DurgaRoutes.EMERGENCY_CONTACTS) },
+                        contactsCount = emergencyContacts.size,
                         onNavigateToAuthorityPortal = { navController.navigate(DurgaRoutes.AUTHORITY_PORTAL) },
                         onNavigateToWebPortals = { navController.navigate(DurgaRoutes.WEB_PORTALS) },
                         onNavigate = { route ->
@@ -629,6 +698,101 @@ fun DurgaApp(
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
+                }
+
+                // 25. Emergency Contacts Settings & Test Mode
+                composable(DurgaRoutes.EMERGENCY_CONTACTS) {
+                    EmergencyContactsScreen(
+                        currentLanguage = currentLang,
+                        contacts = emergencyContacts,
+                        onAddContact = { name, phone, rel, wa ->
+                            viewModel.addEmergencyContact(name, phone, rel, wa)
+                        },
+                        onUpdateContact = { contact ->
+                            viewModel.updateEmergencyContact(contact)
+                        },
+                        onDeleteContact = { id ->
+                            viewModel.deleteEmergencyContact(id)
+                        },
+                        onReorderContacts = { orderedIds ->
+                            viewModel.reorderEmergencyContacts(orderedIds)
+                        },
+                        onRunTestSos = {
+                            activityContext?.let { ctx ->
+                                viewModel.runTestSosSetup(ctx)
+                            } ?: viewModel.runTestSosSetup(viewModel.getApplication())
+                        },
+                        onBack = { navController.popBackStack() },
+                        onLanguageChange = { viewModel.setLanguage(it) },
+                        onQuickExit = { viewModel.triggerQuickExit() }
+                    )
+                }
+
+                // 26. Active SOS Emergency Mode Dashboard
+                composable(DurgaRoutes.EMERGENCY_STATUS) {
+                    val session = activeSosSession
+                    if (session != null && session.isEmergencyActive) {
+                        EmergencyStatusScreen(
+                            currentLanguage = currentLang,
+                            session = session,
+                            onCancelEmergency = {
+                                activityContext?.let { ctx ->
+                                    viewModel.cancelSos(ctx)
+                                }
+                                navController.popBackStack(DurgaRoutes.HOME, inclusive = false)
+                            },
+                            onRedialPrimary = {
+                                activityContext?.let { ctx ->
+                                    viewModel.redialPrimaryContact(ctx)
+                                }
+                            },
+                            onRetryLocation = {
+                                activityContext?.let { ctx ->
+                                    viewModel.retryLocationInSos(ctx)
+                                }
+                            },
+                            onOpenSmsComposer = {
+                                activityContext?.let { ctx ->
+                                    viewModel.openSmsComposer(ctx)
+                                }
+                            },
+                            onOpenWhatsApp = {
+                                activityContext?.let { ctx ->
+                                    viewModel.openWhatsAppEmergency(ctx)
+                                }
+                            },
+                            onCall112 = {
+                                activityContext?.let { ctx ->
+                                    viewModel.callOfficial112(ctx)
+                                }
+                            },
+                            onBackupCall = { contact ->
+                                activityContext?.let { ctx ->
+                                    viewModel.triggerBackupCall(ctx, contact)
+                                }
+                            },
+                            onBackupSms = { contact ->
+                                activityContext?.let { ctx ->
+                                    viewModel.triggerBackupSms(ctx, contact)
+                                }
+                            },
+                            onBackupWhatsApp = { contact ->
+                                activityContext?.let { ctx ->
+                                    viewModel.openWhatsAppEmergency(ctx, contact)
+                                }
+                            },
+                            onQuickExit = {
+                                activityContext?.let { ctx ->
+                                    viewModel.cancelSos(ctx)
+                                }
+                                viewModel.triggerQuickExit()
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) {
+                            navController.popBackStack(DurgaRoutes.HOME, inclusive = false)
+                        }
+                    }
                 }
             }
 

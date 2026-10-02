@@ -153,6 +153,9 @@ fun HomeScreen(
     trustedContactsCount: Int = 0,
     onRequestLiveGps: () -> Unit = {},
     onSendSosAlert: () -> Unit = {},
+    onTriggerOneTapSos: () -> Unit = {},
+    onTriggerSilentSos: () -> Unit = {},
+    onNavigateToEmergencyContacts: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -184,8 +187,7 @@ fun HomeScreen(
                 val elapsed = System.currentTimeMillis() - startTime
                 sosHoldProgress = (elapsed / 3000f).coerceIn(0f, 1f)
                 if (sosHoldProgress >= 1f) {
-                    onRequestLiveGps()
-                    showSosActiveDialog = true
+                    onTriggerOneTapSos()
                     isHoldingSos = false
                     sosHoldProgress = 0f
                     break
@@ -497,7 +499,7 @@ fun HomeScreen(
                                             isHoldingSos = false
                                         },
                                         onTap = {
-                                            onNavigateToEmergency()
+                                            onTriggerOneTapSos()
                                         }
                                     )
                                 }
@@ -607,6 +609,32 @@ fun HomeScreen(
                             ),
                             textAlign = TextAlign.Center
                         )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Quick Safety Action Chips
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = onTriggerSilentSos,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("🔇 " + DurgaStrings.get("sos_cant_talk_btn", currentLanguage), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            OutlinedButton(
+                                onClick = onNavigateToEmergencyContacts,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("👥 " + DurgaStrings.get("manage_contacts_btn", currentLanguage), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             }

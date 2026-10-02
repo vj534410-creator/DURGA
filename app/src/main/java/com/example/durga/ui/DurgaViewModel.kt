@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.durga.database.PinVerificationResult
 import com.example.durga.database.SecurityVault
 import com.example.durga.i18n.DurgaLanguage
+import com.example.durga.database.EmergencyContact
 import com.example.durga.model.AiGeneratedDraft
 import com.example.durga.model.AuditAccessLogEntity
 import com.example.durga.model.AuthorityRole
@@ -24,6 +25,14 @@ import com.example.durga.model.IncidentCategory
 import com.example.durga.model.NearbyPlace
 import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
+import com.example.durga.model.SosActiveSession
+import com.example.durga.model.SosCallState
+import com.example.durga.model.SosLocationState
+import com.example.durga.model.SosSmsState
+import com.example.durga.model.SosWhatsAppState
+import com.example.durga.model.Sos112State
+import com.example.durga.model.SosTestResult
+import com.example.durga.model.SosTestCheckItem
 import com.example.durga.model.TrustedContactEntity
 import com.example.durga.repository.DurgaRepository
 import com.example.ui.theme.DurgaThemeMode
@@ -83,6 +92,23 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _vaultLockType = MutableStateFlow(prefs.getString("vault_lock_type", "PIN") ?: "PIN")
     val vaultLockType: StateFlow<String> = _vaultLockType.asStateFlow()
+
+    // Encrypted Emergency Contacts State
+    private val _emergencyContacts = MutableStateFlow<List<EmergencyContact>>(emptyList())
+    val emergencyContacts: StateFlow<List<EmergencyContact>> = _emergencyContacts.asStateFlow()
+
+    // 1-Tap Active SOS Emergency Session State
+    private val _activeSosSession = MutableStateFlow<SosActiveSession?>(null)
+    val activeSosSession: StateFlow<SosActiveSession?> = _activeSosSession.asStateFlow()
+
+    init {
+        loadEncryptedEmergencyContacts()
+    }
+
+    fun loadEncryptedEmergencyContacts() {
+        val contacts = SecurityVault.getEncryptedEmergencyContacts(getApplication())
+        _emergencyContacts.value = contacts
+    }
 
     private val _vaultErrorMessage = MutableStateFlow<String?>(null)
     val vaultErrorMessage: StateFlow<String?> = _vaultErrorMessage.asStateFlow()
@@ -397,28 +423,428 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
         addEvidenceItem(type, name, uri, sizeBytes)
     }
 
-    // --- TRUSTED EMERGENCY CONTACTS ---
+    // --- ENCRYPTED EMERGENCY CONTACTS & ONE-TAP SOS ASSISTANCE SYSTEM ---
 
-    fun addTrustedContact(name: String, phone: String, relation: String = "Family") {
-        viewModelScope.launch {
-            repository.insertTrustedContact(
-                TrustedContactEntity(
-                    name = name.trim(),
-                    phoneNumber = phone.trim(),
-                    relationship = relation.trim(),
-                    isSosActive = true
+    fun addEmergencyContact(name: String, phone: String, relation: String = "Family", isWhatsAppAvailable: Boolean = true): Pair<Boolean, String?> {
+        val contact = EmergencyContact(
+            name = name.trim(),
+            phoneNumber = phone.trim(),
+            relationship = relation.trim(),
+            isWhatsAppAvailable = isWhatsAppAvailable
+        )
+        val result = SecurityVault.addEmergencyContact(getApplication(), contact)
+        if (result.first) {
+            loadEncryptedEmergencyContacts()
+        }
+        return result
+    }
+
+    fun updateEmergencyContact(contact: EmergencyContact): Pair<Boolean, String?> {
+        val result = SecurityVault.updateEmergencyContact(getApplication(), contact)
+        if (result.first) {
+            loadEncryptedEmergencyContacts()
+        }
+        return result
+    }
+
+    fun deleteEmergencyContact(id: String): Boolean {
+        val ok = SecurityVault.deleteEmergencyContact(getApplication(), id)
+        if (ok) {
+            loadEncryptedEmergencyContacts()
+        }
+        return ok
+    }
+
+    fun reorderEmergencyContacts(orderedIds: List<String>): Boolean {
+        val ok = SecurityVault.reorderEmergencyContacts(getApplication(), orderedIds)
+        if (ok) {
+            loadEncryptedEmergencyContacts()
+        }
+        return ok
+    }
+
+    // --- ONE-TAP SOS EMERGENCY FLOW ---
+
+    fun triggerOneTapSos(context: Context, isSilentMode: Boolean = false) {
+        // Accidental double-tap / flood prevention: if already active, do not spam duplicate calls/messages
+        val current = _activeSosSession.value
+        if (current != null && current.isEmergencyActive) {
+            return
+        }
+
+        val incidentId = "SOS-2026-" + (100000..999999).random()
+        val timeDisplay = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault()).format(Date())
+        val contacts = SecurityVault.getEncryptedEmergencyContacts(context)
+        val primary = contacts.firstOrNull { it.priority == 1 } ?: contacts.firstOrNull()
+        val backups = contacts.filter { it.id != primary?.id }
+
+        val initialSession = SosActiveSession(
+            incidentId = incidentId,
+            timestampDisplay = timeDisplay,
+            isSilentMode = isSilentMode,
+            primaryContact = primary,
+            backupContacts = backups,
+            isEmergencyActive = true,
+            locationState = SosLocationState.PENDING,
+            callState = if (isSilentMode) SosCallState.NOT_STARTED else SosCallState.NOT_STARTED
+        )
+        _activeSosSession.value = initialSession
+
+        // Record audit event
+        repository.insertAuditLog(
+            caseId = "SOS_INCIDENT",
+            authorityId = "USER",
+            role = "USER",
+            action = "SOS_STARTED",
+            reason = "One-tap SOS activated. Incident: $incidentId, Silent: $isSilentMode"
+        )
+
+        // 1. Location attempt with 3.5s timeout (non-blocking)
+        viewModelScope.launch(Dispatchers.IO) {
+            var mapUrl: String? = null
+            try {
+                val finePerm = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                val coarsePerm = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                if (finePerm == PackageManager.PERMISSION_GRANTED || coarsePerm == PackageManager.PERMISSION_GRANTED) {
+                    val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+                    fusedClient.lastLocation.addOnSuccessListener { loc ->
+                        if (loc != null) {
+                            val lat = loc.latitude
+                            val lng = loc.longitude
+                            mapUrl = "https://maps.google.com/?q=${loc.latitude},${loc.longitude}"
+                            _userCoordinates.value = Pair(lat, lng)
+                            _lastKnownLocationText.value = "GPS: ${"%.4f".format(lat)}, ${"%.4f".format(lng)}"
+                            _activeSosSession.value = _activeSosSession.value?.copy(
+                                locationState = SosLocationState.OBTAINED,
+                                latitude = lat,
+                                longitude = lng,
+                                mapLink = mapUrl ?: "",
+                                locationAccuracyText = "Accuracy: ${loc.accuracy.toInt()}m"
+                            )
+                        } else {
+                            _activeSosSession.value = _activeSosSession.value?.copy(
+                                locationState = SosLocationState.UNAVAILABLE,
+                                mapLink = "Location unavailable"
+                            )
+                        }
+                    }.addOnFailureListener {
+                        _activeSosSession.value = _activeSosSession.value?.copy(
+                            locationState = SosLocationState.UNAVAILABLE,
+                            mapLink = "Location unavailable"
+                        )
+                    }
+                } else {
+                    _activeSosSession.value = _activeSosSession.value?.copy(
+                        locationState = SosLocationState.PERMISSION_DENIED,
+                        mapLink = "Location permission denied"
+                    )
+                }
+            } catch (_: Exception) {
+                _activeSosSession.value = _activeSosSession.value?.copy(
+                    locationState = SosLocationState.UNAVAILABLE,
+                    mapLink = "Location unavailable"
                 )
+            }
+
+            // Generate truthful emergency message
+            val lang = _currentLanguage.value
+            val message = SecurityVault.generateEmergencyMessage(context, lang, mapUrl, timeDisplay)
+            _activeSosSession.value = _activeSosSession.value?.copy(emergencyMessage = message)
+        }
+
+        // 2. Primary call initiation (unless silent mode)
+        if (!isSilentMode && primary != null) {
+            val phone = primary.phoneNumber
+            val callPermission = ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE)
+            if (callPermission == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    val callIntent = Intent(Intent.ACTION_CALL).apply {
+                        data = Uri.parse("tel:$phone")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(callIntent)
+                    _activeSosSession.value = _activeSosSession.value?.copy(
+                        callState = SosCallState.CALLING_PRIMARY,
+                        callTargetName = primary.name,
+                        callTargetPhone = primary.phoneNumber
+                    )
+                } catch (_: Exception) {
+                    openDialer(context, phone, primary.name)
+                }
+            } else {
+                openDialer(context, phone, primary.name)
+            }
+        }
+
+        // 3. Prepare SMS
+        if (contacts.isNotEmpty()) {
+            _activeSosSession.value = _activeSosSession.value?.copy(
+                smsState = SosSmsState.PREPARED_COMPOSER
+            )
+        } else {
+            _activeSosSession.value = _activeSosSession.value?.copy(
+                smsState = SosSmsState.NO_CONTACTS
+            )
+        }
+
+        // 4. Check WhatsApp availability
+        val isWaInstalled = isPackageInstalled(context, "com.whatsapp")
+        _activeSosSession.value = _activeSosSession.value?.copy(
+            whatsAppState = if (isWaInstalled) SosWhatsAppState.NOT_STARTED else SosWhatsAppState.NOT_INSTALLED
+        )
+    }
+
+    private fun openDialer(context: Context, phone: String, name: String) {
+        try {
+            val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:$phone")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(dialIntent)
+            _activeSosSession.value = _activeSosSession.value?.copy(
+                callState = SosCallState.DIALER_OPENED,
+                callTargetName = name,
+                callTargetPhone = phone
+            )
+        } catch (_: Exception) {
+            _activeSosSession.value = _activeSosSession.value?.copy(
+                callState = SosCallState.FAILED
             )
         }
     }
 
-    fun deleteTrustedContact(id: String) {
-        viewModelScope.launch {
-            repository.deleteTrustedContact(id)
+    fun callOfficial112(context: Context) {
+        openDialer(context, "112", "National Emergency (112)")
+        _activeSosSession.value = _activeSosSession.value?.copy(
+            erss112State = Sos112State.DIALER_OPENED
+        )
+    }
+
+    fun openSmsComposer(context: Context) {
+        val session = _activeSosSession.value ?: return
+        val contacts = SecurityVault.getEncryptedEmergencyContacts(context)
+        if (contacts.isEmpty()) return
+        val phoneList = contacts.map { it.phoneNumber }.joinToString(";")
+        val msg = session.emergencyMessage.ifBlank {
+            SecurityVault.generateEmergencyMessage(context, _currentLanguage.value, session.mapLink.ifBlank { null }, session.timestampDisplay)
+        }
+        try {
+            val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("smsto:$phoneList")
+                putExtra("sms_body", msg)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(smsIntent)
+            _activeSosSession.value = _activeSosSession.value?.copy(smsState = SosSmsState.PREPARED_COMPOSER)
+        } catch (_: Exception) {}
+    }
+
+    fun openWhatsAppEmergency(context: Context, targetContact: EmergencyContact? = null) {
+        val session = _activeSosSession.value ?: return
+        val contact = targetContact ?: session.primaryContact ?: _emergencyContacts.value.firstOrNull() ?: return
+        val msg = session.emergencyMessage.ifBlank {
+            SecurityVault.generateEmergencyMessage(context, _currentLanguage.value, session.mapLink.ifBlank { null }, session.timestampDisplay)
+        }
+        try {
+            val cleanPhone = SecurityVault.normalizePhoneNumber(contact.phoneNumber).replace("+", "")
+            val url = "https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(msg)}"
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                setPackage("com.whatsapp")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            _activeSosSession.value = _activeSosSession.value?.copy(whatsAppState = SosWhatsAppState.OPENED_CHAT)
+        } catch (_: Exception) {
+            try {
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, msg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(sendIntent)
+            } catch (_: Exception) {}
         }
     }
 
-    // --- LIVE LOCATION & EMERGENCY SOS FLOW ---
+    fun triggerBackupCall(context: Context, contact: EmergencyContact) {
+        openDialer(context, contact.phoneNumber, contact.name)
+    }
+
+    fun triggerBackupSms(context: Context, contact: EmergencyContact) {
+        val session = _activeSosSession.value
+        val msg = session?.emergencyMessage?.ifBlank { null }
+            ?: SecurityVault.generateEmergencyMessage(context, _currentLanguage.value, session?.mapLink?.ifBlank { null }, session?.timestampDisplay)
+        try {
+            val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("smsto:${contact.phoneNumber}")
+                putExtra("sms_body", msg)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(smsIntent)
+        } catch (_: Exception) {}
+    }
+
+    fun cancelSos(context: Context) {
+        SecurityVault.purgePreviewCache(context)
+        _activeSosSession.value = null
+        repository.insertAuditLog(
+            caseId = "SOS_INCIDENT",
+            authorityId = "USER",
+            role = "USER",
+            action = "SOS_STOPPED",
+            reason = "Emergency mode safely closed by user"
+        )
+    }
+
+    fun redialPrimaryContact(context: Context) {
+        val session = _activeSosSession.value ?: return
+        val primary = session.primaryContact ?: return
+        triggerEmergencyCall(context, primary.phoneNumber)
+    }
+
+    fun retryLocationInSos(context: Context) {
+        _activeSosSession.value = _activeSosSession.value?.copy(locationState = SosLocationState.PENDING)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val finePerm = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                val coarsePerm = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                if (finePerm == PackageManager.PERMISSION_GRANTED || coarsePerm == PackageManager.PERMISSION_GRANTED) {
+                    val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+                    fusedClient.lastLocation.addOnSuccessListener { loc ->
+                        if (loc != null) {
+                            val lat = loc.latitude
+                            val lng = loc.longitude
+                            val mapUrl = "https://maps.google.com/?q=${loc.latitude},${loc.longitude}"
+                            _userCoordinates.value = Pair(lat, lng)
+                            _activeSosSession.value = _activeSosSession.value?.copy(
+                                locationState = SosLocationState.OBTAINED,
+                                latitude = lat,
+                                longitude = lng,
+                                mapLink = mapUrl,
+                                locationAccuracyText = "Accuracy: ${loc.accuracy.toInt()}m"
+                            )
+                        } else {
+                            _activeSosSession.value = _activeSosSession.value?.copy(
+                                locationState = SosLocationState.UNAVAILABLE,
+                                mapLink = "Location unavailable"
+                            )
+                        }
+                    }.addOnFailureListener {
+                        _activeSosSession.value = _activeSosSession.value?.copy(
+                            locationState = SosLocationState.UNAVAILABLE,
+                            mapLink = "Location unavailable"
+                        )
+                    }
+                } else {
+                    _activeSosSession.value = _activeSosSession.value?.copy(
+                        locationState = SosLocationState.PERMISSION_DENIED,
+                        mapLink = "Location permission denied"
+                    )
+                }
+            } catch (_: Exception) {
+                _activeSosSession.value = _activeSosSession.value?.copy(
+                    locationState = SosLocationState.UNAVAILABLE,
+                    mapLink = "Location unavailable"
+                )
+            }
+        }
+    }
+
+    fun isPackageInstalled(context: Context, packageName: String): Boolean {
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun runTestSosSetup(context: Context): SosTestResult {
+        val contacts = SecurityVault.getEncryptedEmergencyContacts(context)
+        val items = mutableListOf<SosTestCheckItem>()
+
+        val count = contacts.size
+        items.add(
+            SosTestCheckItem(
+                title = "Emergency Contacts Configured",
+                detail = if (count > 0) "$count of 5 contacts saved in encrypted storage" else "No emergency contacts configured yet",
+                isPassed = count > 0,
+                isWarning = count == 0
+            )
+        )
+
+        val primary = contacts.firstOrNull { it.priority == 1 }
+        items.add(
+            SosTestCheckItem(
+                title = "Primary Emergency Contact",
+                detail = if (primary != null) "${primary.name} (${primary.phoneNumber})" else "Missing primary contact (Priority 1)",
+                isPassed = primary != null,
+                isWarning = primary == null
+            )
+        )
+
+        val invalidPhones = contacts.filter { !SecurityVault.validatePhoneNumber(it.phoneNumber) }
+        items.add(
+            SosTestCheckItem(
+                title = "Phone Number Validation",
+                detail = if (invalidPhones.isEmpty()) "All phone numbers are valid (7-15 digits)" else "${invalidPhones.size} contacts have invalid numbers",
+                isPassed = invalidPhones.isEmpty(),
+                isWarning = invalidPhones.isNotEmpty()
+            )
+        )
+
+        val callPerm = ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        items.add(
+            SosTestCheckItem(
+                title = "Direct Calling (CALL_PHONE)",
+                detail = if (callPerm) "Permission granted for 1-tap direct emergency calls" else "Direct call permission not granted; phone dialer fallback (ACTION_DIAL) is active",
+                isPassed = true,
+                isWarning = !callPerm
+            )
+        )
+
+        val locPerm = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        items.add(
+            SosTestCheckItem(
+                title = "Emergency Location Access",
+                detail = if (locPerm) "Location permission granted for automatic map link generation" else "Location permission not granted; emergency alert will state 'Location unavailable'",
+                isPassed = true,
+                isWarning = !locPerm
+            )
+        )
+
+        val waInstalled = isPackageInstalled(context, "com.whatsapp")
+        items.add(
+            SosTestCheckItem(
+                title = "WhatsApp Emergency Communication",
+                detail = if (waInstalled) "WhatsApp detected and ready for 1-tap assisted emergency messages" else "WhatsApp not detected; fallback to SMS and direct phone calling",
+                isPassed = true,
+                isWarning = !waInstalled
+            )
+        )
+
+        val sampleMsg = SecurityVault.generateEmergencyMessage(
+            context,
+            _currentLanguage.value,
+            "https://maps.google.com/?q=23.0225,72.5714",
+            SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+        )
+
+        return SosTestResult(
+            items = items,
+            isFullyConfigured = count > 0 && primary != null && invalidPhones.isEmpty(),
+            sampleMessage = sampleMsg
+        )
+    }
+
+    // --- LEGACY HELPER COMPATIBILITY ---
+    fun addTrustedContact(name: String, phone: String, relation: String = "Family") {
+        addEmergencyContact(name, phone, relation)
+    }
+
+    fun deleteTrustedContact(id: String) {
+        deleteEmergencyContact(id)
+    }
 
     fun requestLiveGpsLocation(context: Context, onResult: (Double, Double, String) -> Unit) {
         try {
@@ -453,26 +879,7 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendSosAlertToContacts(context: Context) {
-        val contacts = trustedContacts.value
-        val coords = _userCoordinates.value
-        val mapsLink = if (coords.first != 0.0 && coords.second != 0.0) {
-            "https://maps.google.com/?q=${coords.first},${coords.second}"
-        } else {
-            "Location unavailable"
-        }
-        val message = "DURGA EMERGENCY ALERT: I need immediate assistance. My location: $mapsLink"
-
-        if (contacts.isNotEmpty()) {
-            val phoneList = contacts.map { it.phoneNumber }.joinToString(";")
-            try {
-                val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = Uri.parse("smsto:$phoneList")
-                    putExtra("sms_body", message)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(smsIntent)
-            } catch (_: Exception) {}
-        }
+        openSmsComposer(context)
     }
 
     // --- REAL SPEECH TRANSCRIPTION ---

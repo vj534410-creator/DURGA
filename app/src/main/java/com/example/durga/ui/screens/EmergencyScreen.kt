@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -38,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -81,6 +83,9 @@ fun EmergencyScreen(
     onCallNumber: (String) -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
+    onTriggerOneTapSos: () -> Unit = {},
+    onTriggerSilentSos: () -> Unit = {},
+    onNavigateToEmergencyContacts: () -> Unit = {},
     onNavigate: ((String) -> Unit)? = null,
     onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -100,7 +105,7 @@ fun EmergencyScreen(
         topBar = {
             DurgaTopBar(
                 title = DurgaStrings.get("emergency_help", currentLanguage),
-                subtitle = "Official 24/7 Verified Helplines",
+                subtitle = "Official 24/7 Verified Helplines & SOS",
                 currentLang = currentLanguage,
                 onBack = onBack,
                 onLanguageChange = onLanguageChange,
@@ -127,6 +132,98 @@ fun EmergencyScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // 1. ONE-TAP SOS ACTIVATION CARD
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DurgaEmergencyRed),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "🚨 ONE-TAP EMERGENCY SOS",
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Calls primary contact, gets location, pre-fills SMS & WhatsApp alerts immediately.",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Button(
+                            onClick = onTriggerOneTapSos,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("trigger_sos_from_emergency_screen_btn")
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = null, tint = DurgaEmergencyRed)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ACTIVATE SOS NOW",
+                                fontWeight = FontWeight.Black,
+                                color = DurgaEmergencyRed,
+                                fontSize = 15.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onTriggerSilentSos,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("I Can't Talk (Silent)", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
+
+                            OutlinedButton(
+                                onClick = onNavigateToEmergencyContacts,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Manage Contacts", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Immediate 112 Primary Emergency Banner
             item {
                 Card(

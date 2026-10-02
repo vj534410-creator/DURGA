@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">DURGA</string>
+
+    <!-- Launcher Quick Action Shortcuts (Gujarati) -->
+    <string name="shortcut_sos_short">ઇમરજન્સી SOS</string>
+    <string name="shortcut_sos_long">ઇમરજન્સી સહાય (SOS)</string>
+    <string name="shortcut_complaint_short">નવી ફરિયાદ</string>
+    <string name="shortcut_complaint_long">નવી સુરક્ષા ફરિયાદ નોંધાવો</string>
+    <string name="shortcut_help_near_me_short">નજીકની સહાય</string>
+    <string name="shortcut_help_near_me_long">નજીકના સુરક્ષા કેન્દ્રો</string>
+    <string name="shortcut_lock_vault_short">પુરાવા લોક કરો</string>
+    <string name="shortcut_lock_vault_long">પુરાવા તિજોરી સુરક્ષિત લોક કરો</string>
+</resources>

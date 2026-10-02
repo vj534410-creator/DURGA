@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Fingerprint
@@ -104,6 +105,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onQuickExit: () -> Unit,
     onNavigate: (String) -> Unit,
+    onNavigateToEmergencyContacts: () -> Unit = {},
+    contactsCount: Int = 0,
     onNavigateToAuthorityPortal: () -> Unit = {},
     onNavigateToWebPortals: () -> Unit = onNavigateToAuthorityPortal,
     onOpenFeatureSwitcher: (() -> Unit)? = null,
@@ -517,6 +520,37 @@ fun SettingsScreen(
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp
                                     )
+                                }
+                            }
+                        }
+
+                        // 4. Emergency / SOS Contacts Management
+                        SettingsCard(
+                            title = DurgaStrings.get("manage_contacts_btn", currentLanguage),
+                            icon = Icons.Default.Call
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    text = when (currentLanguage) {
+                                        DurgaLanguage.GUJARATI -> "વન-ટેપ SOS માટે વધુમાં વધુ 5 વિશ્વાસુ સંપર્કો ગોઠવો. આ સંપર્કો હાર્ડવેર EncryptedSharedPreferences માં સુરક્ષિત રહે છે."
+                                        DurgaLanguage.HINDI -> "वन-टैप SOS के लिए अधिकतम 5 विश्वसनीय संपर्क सेट करें। ये संपर्क हार्डवेयर EncryptedSharedPreferences में सुरक्षित रहते हैं।"
+                                        else -> "Configure up to 5 trusted contacts for One-Tap SOS emergency calling & alerts. Stored in hardware EncryptedSharedPreferences."
+                                    },
+                                    fontSize = 12.sp,
+                                    color = colors.textSecondary
+                                )
+
+                                Button(
+                                    onClick = onNavigateToEmergencyContacts,
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("settings_open_contacts_btn")
+                                ) {
+                                    Icon(Icons.Default.Call, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Manage Trusted Contacts ($contactsCount/5)")
                                 }
                             }
                         }

@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">DURGA</string>
+
+    <!-- Launcher Quick Action Shortcuts (Hindi) -->
+    <string name="shortcut_sos_short">इमरजेंसी SOS</string>
+    <string name="shortcut_sos_long">आपातकालीन सहायता (SOS)</string>
+    <string name="shortcut_complaint_short">नई शिकायत</string>
+    <string name="shortcut_complaint_long">नई सुरक्षा शिकायत दर्ज करें</string>
+    <string name="shortcut_help_near_me_short">पास में सहायता</string>
+    <string name="shortcut_help_near_me_long">पास के आपातकालीन सुरक्षा केंद्र</string>
+    <string name="shortcut_lock_vault_short">प्रमाण लॉक करें</string>
+    <string name="shortcut_lock_vault_long">साक्ष्य वॉल्ट सुरक्षित रूप से लॉक करें</string>
+</resources>

@@ -262,6 +262,27 @@ class DurgaRepository(private val context: Context) {
         auditDao.insertLog(log)
     }
 
+    fun insertAuditLog(
+        caseId: String,
+        authorityId: String,
+        role: String,
+        action: String,
+        reason: String
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            auditDao.insertLog(
+                AuditAccessLogEntity(
+                    caseId = caseId,
+                    authorityId = authorityId,
+                    role = role,
+                    action = action,
+                    reason = reason,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
     // --- AI Integration ---
     suspend fun requestAiDraft(rawText: String, category: String, languageName: String): Result<AiGeneratedDraft> {
         return GeminiComplaintWriter.generateComplaintDraft(rawText, category, languageName)

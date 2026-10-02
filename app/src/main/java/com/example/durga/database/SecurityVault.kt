@@ -16,6 +16,9 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
+import org.json.JSONArray
+import org.json.JSONObject
+import com.example.durga.i18n.DurgaLanguage
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -456,7 +459,216 @@ object SecurityVault {
         val prefs = getEncryptedPreferences(context)
         prefs.edit().putBoolean(KEY_BIOMETRIC_LOCK_ENABLED, enabled).apply()
     }
+
+    // --- SECURE ENCRYPTED EMERGENCY / SOS CONTACTS ---
+
+    private const val KEY_EMERGENCY_CONTACTS_JSON = "encrypted_emergency_contacts_v1"
+    private const val KEY_CUSTOM_MSG_TEMPLATE_EN = "custom_sos_template_en"
+    private const val KEY_CUSTOM_MSG_TEMPLATE_GU = "custom_sos_template_gu"
+    private const val KEY_CUSTOM_MSG_TEMPLATE_HI = "custom_sos_template_hi"
+    const val MAX_TRUSTED_CONTACTS = 5
+
+    fun validatePhoneNumber(phoneNumber: String): Boolean {
+        val clean = phoneNumber.replace(Regex("[\\s\\-().]"), "")
+        // Allows optional leading '+', 7 to 15 digits
+        return clean.matches(Regex("^\\+?[0-9]{7,15}$"))
+    }
+
+    fun normalizePhoneNumber(phoneNumber: String): String {
+        return phoneNumber.replace(Regex("[\\s\\-().]"), "")
+    }
+
+    fun getEncryptedEmergencyContacts(context: Context): List<EmergencyContact> {
+        return try {
+            val prefs = getEncryptedPreferences(context)
+            val jsonStr = prefs.getString(KEY_EMERGENCY_CONTACTS_JSON, null)
+            if (jsonStr.isNullOrBlank()) {
+                // Initial defaults (India verified safety defaults)
+                val initial = listOf(
+                    EmergencyContact(
+                        id = "default_erss_112",
+                        name = "National Emergency (112)",
+                        phoneNumber = "112",
+                        relationship = "Emergency Service",
+                        isWhatsAppAvailable = false,
+                        priority = 1
+                    ),
+                    EmergencyContact(
+                        id = "default_women_181",
+                        name = "Women Helpline (181)",
+                        phoneNumber = "181",
+                        relationship = "Women Helpline",
+                        isWhatsAppAvailable = false,
+                        priority = 2
+                    )
+                )
+                saveEncryptedEmergencyContacts(context, initial)
+                initial
+            } else {
+                val array = JSONArray(jsonStr)
+                val list = mutableListOf<EmergencyContact>()
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    list.add(
+                        EmergencyContact(
+                            id = obj.optString("id", UUID.randomUUID().toString()),
+                            name = obj.optString("name", ""),
+                            phoneNumber = obj.optString("phoneNumber", ""),
+                            relationship = obj.optString("relationship", "Family"),
+                            isWhatsAppAvailable = obj.optBoolean("isWhatsAppAvailable", true),
+                            priority = obj.optInt("priority", i + 1)
+                        )
+                    )
+                }
+                list.sortedBy { it.priority }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveEncryptedEmergencyContacts(context: Context, contacts: List<EmergencyContact>): Boolean {
+        return try {
+            val limited = contacts.take(MAX_TRUSTED_CONTACTS)
+            val array = JSONArray()
+            limited.forEachIndexed { index, contact ->
+                val obj = JSONObject().apply {
+                    put("id", contact.id)
+                    put("name", contact.name)
+                    put("phoneNumber", contact.phoneNumber)
+                    put("relationship", contact.relationship)
+                    put("isWhatsAppAvailable", contact.isWhatsAppAvailable)
+                    put("priority", index + 1)
+                }
+                array.put(obj)
+            }
+            val prefs = getEncryptedPreferences(context)
+            prefs.edit().putString(KEY_EMERGENCY_CONTACTS_JSON, array.toString()).apply()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun addEmergencyContact(context: Context, contact: EmergencyContact): Pair<Boolean, String?> {
+        val current = getEncryptedEmergencyContacts(context).toMutableList()
+        if (current.size >= MAX_TRUSTED_CONTACTS) {
+            return Pair(false, "Maximum $MAX_TRUSTED_CONTACTS emergency contacts reached.")
+        }
+        val cleanPhone = normalizePhoneNumber(contact.phoneNumber)
+        if (!validatePhoneNumber(cleanPhone)) {
+            return Pair(false, "Invalid phone number. Must contain 7 to 15 digits.")
+        }
+        if (current.any { normalizePhoneNumber(it.phoneNumber) == cleanPhone }) {
+            return Pair(false, "This phone number is already in your emergency contacts.")
+        }
+        val newPriority = current.size + 1
+        current.add(contact.copy(phoneNumber = cleanPhone, priority = newPriority))
+        saveEncryptedEmergencyContacts(context, current)
+        return Pair(true, null)
+    }
+
+    fun updateEmergencyContact(context: Context, updated: EmergencyContact): Pair<Boolean, String?> {
+        val cleanPhone = normalizePhoneNumber(updated.phoneNumber)
+        if (!validatePhoneNumber(cleanPhone)) {
+            return Pair(false, "Invalid phone number. Must contain 7 to 15 digits.")
+        }
+        val current = getEncryptedEmergencyContacts(context).toMutableList()
+        val index = current.indexOfFirst { it.id == updated.id }
+        if (index == -1) return Pair(false, "Contact not found.")
+        current[index] = updated.copy(phoneNumber = cleanPhone)
+        saveEncryptedEmergencyContacts(context, current)
+        return Pair(true, null)
+    }
+
+    fun deleteEmergencyContact(context: Context, id: String): Boolean {
+        val current = getEncryptedEmergencyContacts(context).toMutableList()
+        val removed = current.removeAll { it.id == id }
+        if (removed) {
+            // Re-normalize priorities
+            current.forEachIndexed { idx, c ->
+                current[idx] = c.copy(priority = idx + 1)
+            }
+            saveEncryptedEmergencyContacts(context, current)
+            return true
+        }
+        return false
+    }
+
+    fun reorderEmergencyContacts(context: Context, orderedIds: List<String>): Boolean {
+        val current = getEncryptedEmergencyContacts(context)
+        val contactMap = current.associateBy { it.id }
+        val reordered = mutableListOf<EmergencyContact>()
+        orderedIds.forEachIndexed { idx, id ->
+            contactMap[id]?.let {
+                reordered.add(it.copy(priority = idx + 1))
+            }
+        }
+        if (reordered.size == current.size) {
+            return saveEncryptedEmergencyContacts(context, reordered)
+        }
+        return false
+    }
+
+    fun getCustomEmergencyMessageTemplate(context: Context, lang: DurgaLanguage): String? {
+        val prefs = getEncryptedPreferences(context)
+        val key = when (lang) {
+            DurgaLanguage.GUJARATI -> KEY_CUSTOM_MSG_TEMPLATE_GU
+            DurgaLanguage.HINDI -> KEY_CUSTOM_MSG_TEMPLATE_HI
+            DurgaLanguage.ENGLISH -> KEY_CUSTOM_MSG_TEMPLATE_EN
+        }
+        return prefs.getString(key, null)
+    }
+
+    fun setCustomEmergencyMessageTemplate(context: Context, lang: DurgaLanguage, template: String) {
+        val prefs = getEncryptedPreferences(context)
+        val key = when (lang) {
+            DurgaLanguage.GUJARATI -> KEY_CUSTOM_MSG_TEMPLATE_GU
+            DurgaLanguage.HINDI -> KEY_CUSTOM_MSG_TEMPLATE_HI
+            DurgaLanguage.ENGLISH -> KEY_CUSTOM_MSG_TEMPLATE_EN
+        }
+        prefs.edit().putString(key, template).apply()
+    }
+
+    fun generateEmergencyMessage(
+        context: Context,
+        lang: DurgaLanguage,
+        locationLink: String?,
+        timeStr: String?
+    ): String {
+        val custom = getCustomEmergencyMessageTemplate(context, lang)
+        if (!custom.isNullOrBlank()) {
+            return custom
+                .replace("[LOCATION]", locationLink ?: "Location unavailable")
+                .replace("[TIME]", timeStr ?: "")
+                .replace("[MAP LINK]", locationLink ?: "Location unavailable")
+        }
+
+        val actualLoc = locationLink ?: when (lang) {
+            DurgaLanguage.GUJARATI -> "લોકેશન અનુપલબ્ધ છે"
+            DurgaLanguage.HINDI -> "लोकेशन अनुपलब्ध है"
+            DurgaLanguage.ENGLISH -> "Location unavailable"
+        }
+
+        return when (lang) {
+            DurgaLanguage.GUJARATI ->
+                "તાત્કાલિક મદદની જરૂર છે. આ એક ઈમરજન્સી છે.\nમારી હાલની location:\n$actualLoc\nસમય: ${timeStr ?: ""}\nકૃપા કરીને મને તરત સંપર્ક કરો."
+            DurgaLanguage.HINDI ->
+                "मुझे तुरंत मदद चाहिए। यह एक आपातकाल है।\nमेरी वर्तमान location:\n$actualLoc\nसमय: ${timeStr ?: ""}\nकृपया मुझसे तुरंत संपर्क करें।"
+            DurgaLanguage.ENGLISH ->
+                "URGENT: I need help. This is an emergency.\nMy current location:\n$actualLoc\nTime: ${timeStr ?: ""}\nPlease contact me immediately."
+        }
+    }
 }
+
+data class EmergencyContact(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val phoneNumber: String,
+    val relationship: String = "Family",
+    val isWhatsAppAvailable: Boolean = true,
+    val priority: Int = 1
+)
 
 sealed class PinVerificationResult {
     object Success : PinVerificationResult()
