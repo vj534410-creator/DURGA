@@ -9,11 +9,15 @@ import com.example.durga.model.CaseEntity
 import com.example.durga.model.CaseNotificationEntity
 import com.example.durga.model.CaseStatus
 import com.example.durga.model.CaseUpdateEntity
+import com.example.durga.model.CaseTimelineEntity
+import com.example.durga.model.CaseQrEntity
 import com.example.durga.model.DraftComplaintEntity
 import com.example.durga.model.EvidenceEntity
 import com.example.durga.model.NearbyPlace
 import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
+import com.example.durga.model.VerifiedCaseRecord
+import com.example.durga.model.VerifiedTimelineEvent
 import com.example.durga.network.DurgaBackendClient
 import com.example.durga.network.GeminiComplaintWriter
 import com.example.durga.notification.DurgaNotificationHelper
@@ -40,6 +44,8 @@ class DurgaRepository(private val context: Context) {
     private val auditDao = db.auditDao()
     private val notificationDao = db.notificationDao()
     private val trustedContactDao = db.trustedContactDao()
+    private val caseTimelineDao = db.caseTimelineDao()
+    private val caseQrDao = db.caseQrDao()
 
     init {
         // Seed official services & default emergency contact if empty
@@ -68,6 +74,98 @@ class DurgaRepository(private val context: Context) {
     suspend fun getCase(caseId: String): CaseEntity? = caseDao.getCaseById(caseId)
 
     fun observeCase(caseId: String): Flow<CaseEntity?> = caseDao.observeCaseById(caseId)
+
+    suspend fun verifyCaseQrToken(tokenOrCode: String): Result<VerifiedCaseRecord> = withContext(Dispatchers.IO) {
+        val cleanToken = com.example.durga.util.CaseQrHelper.extractTokenFromQr(tokenOrCode) ?: tokenOrCode.trim()
+        if (cleanToken.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid DURGA Case QR"))
+        }
+
+        // 1. Try local database first
+        val localCase = caseDao.getCaseBySecureToken(cleanToken)
+            ?: caseDao.getCaseById(cleanToken)
+
+        if (localCase != null) {
+            val qrEntity = caseQrDao.getQrForCase(localCase.caseId)
+                ?: caseQrDao.getQrByToken(cleanToken)
+            val currentQrStatus = qrEntity?.qrStatus ?: "ACTIVE"
+            val isQrActive = currentQrStatus == "ACTIVE"
+
+            if (currentQrStatus == "REVOKED") {
+                return@withContext Result.failure(IllegalStateException("This Case QR is no longer active."))
+            }
+            if (currentQrStatus == "EXPIRED") {
+                return@withContext Result.failure(IllegalStateException("This Case QR has expired."))
+            }
+
+            val timelineEvents = caseTimelineDao.getTimelineForCase(localCase.caseId).first()
+            val updates = caseUpdateDao.getUpdatesForCase(localCase.caseId).first()
+            val evidence = evidenceDao.getEvidenceForCase(localCase.caseId).first()
+
+            val timelineList = if (timelineEvents.isNotEmpty()) {
+                timelineEvents.map { ev ->
+                    VerifiedTimelineEvent(
+                        id = ev.id,
+                        title = ev.title,
+                        description = ev.description,
+                        actorName = ev.actorName,
+                        actorRole = ev.actorRole,
+                        timestamp = ev.timestamp,
+                        eventType = ev.eventType
+                    )
+                }
+            } else {
+                updates.map { u ->
+                    VerifiedTimelineEvent(
+                        id = u.id,
+                        title = u.status.replace("_", " "),
+                        description = u.message,
+                        actorName = u.updatedBy,
+                        actorRole = "OFFICIAL",
+                        timestamp = u.timestamp,
+                        eventType = u.status
+                    )
+                }
+            }
+
+            val localRecord = VerifiedCaseRecord(
+                caseId = localCase.caseId,
+                status = localCase.status,
+                category = localCase.category,
+                title = localCase.title,
+                summary = localCase.structuredDescription.ifBlank { localCase.originalDescription },
+                incidentDate = localCase.incidentDate,
+                incidentTime = localCase.incidentTime,
+                incidentLocation = localCase.incidentLocation.ifBlank { "Not provided" },
+                createdAt = localCase.createdAt,
+                submittedAt = localCase.createdAt,
+                policeStation = localCase.policeStation.takeIf { it.isNotBlank() },
+                district = localCase.policeDistrict.takeIf { it.isNotBlank() },
+                assignedInspector = localCase.assignedInspector.takeIf { it.isNotBlank() },
+                investigatingOfficer = localCase.investigatingOfficer.takeIf { it.isNotBlank() },
+                assignedAt = localCase.assignedAt.takeIf { it > 0L },
+                photoCount = evidence.count { it.type.contains("PHOTO", true) },
+                videoCount = evidence.count { it.type.contains("VIDEO", true) },
+                audioCount = evidence.count { it.type.contains("AUDIO", true) },
+                documentCount = evidence.count { it.type.contains("DOC", true) || it.type.contains("SCREENSHOT", true) },
+                totalEvidenceCount = evidence.size,
+                timeline = timelineList,
+                secureToken = localCase.secureToken,
+                isQrActive = isQrActive,
+                qrStatus = currentQrStatus
+            )
+            return@withContext Result.success(localRecord)
+        }
+
+        // 2. Try Backend Client
+        val backendResult = DurgaBackendClient.verifyCaseQrToken(cleanToken)
+        if (backendResult.isSuccess) {
+            return@withContext backendResult
+        } else {
+            val err = backendResult.exceptionOrNull()
+            return@withContext Result.failure(err ?: NoSuchElementException("Case record not found."))
+        }
+    }
 
     suspend fun submitComplaint(
         draft: DraftComplaintEntity,
@@ -111,6 +209,29 @@ class DurgaRepository(private val context: Context) {
 
         // Save locally first
         caseDao.insertCase(caseEntity)
+
+        // Save Case QR record to case_qr database model
+        val caseQrRecord = CaseQrEntity(
+            caseId = newCaseId,
+            token = caseEntity.secureToken,
+            qrPayload = com.example.durga.util.CaseQrHelper.buildSecureQrPayload(caseEntity.secureToken),
+            qrStatus = "ACTIVE",
+            createdAt = System.currentTimeMillis()
+        )
+        caseQrDao.insertOrUpdateQr(caseQrRecord)
+
+        // Save initial event to case_timeline database model
+        caseTimelineDao.insertEvent(
+            CaseTimelineEntity(
+                caseId = newCaseId,
+                eventType = "COMPLAINT_SUBMITTED",
+                title = "Complaint Registered Securely",
+                description = "Complaint lodged in DURGA vault. Case reference $newCaseId and secure QR token assigned.",
+                actorName = "DURGA Security System",
+                actorRole = "SYSTEM",
+                timestamp = System.currentTimeMillis()
+            )
+        )
 
         // Associate evidence with case
         val updatedEvidence = evidenceList.map { it.copy(caseId = newCaseId) }
@@ -204,6 +325,60 @@ class DurgaRepository(private val context: Context) {
     }
 
     fun getCaseUpdates(caseId: String): Flow<List<CaseUpdateEntity>> = caseUpdateDao.getUpdatesForCase(caseId)
+
+    // --- Case Timeline (case_timeline) ---
+    fun getTimelineForCase(caseId: String): Flow<List<CaseTimelineEntity>> = caseTimelineDao.getTimelineForCase(caseId)
+
+    suspend fun addTimelineEvent(
+        caseId: String,
+        eventType: String,
+        title: String,
+        description: String,
+        actorName: String = "Duty Officer",
+        actorRole: String = "POLICE_OFFICER"
+    ) = withContext(Dispatchers.IO) {
+        val event = CaseTimelineEntity(
+            caseId = caseId,
+            eventType = eventType,
+            title = title,
+            description = description,
+            actorName = actorName,
+            actorRole = actorRole,
+            timestamp = System.currentTimeMillis()
+        )
+        caseTimelineDao.insertEvent(event)
+        // Also reflect in case_updates
+        caseUpdateDao.insertUpdate(
+            CaseUpdateEntity(
+                caseId = caseId,
+                status = eventType,
+                message = "$title: $description",
+                updatedBy = actorName,
+                timestamp = event.timestamp
+            )
+        )
+        // Sync with backend API
+        DurgaBackendClient.postTimelineEvent(caseId, eventType, title, description, actorName, actorRole)
+    }
+
+    // --- Case QR (case_qr) ---
+    fun observeQrForCase(caseId: String): Flow<CaseQrEntity?> = caseQrDao.observeQrForCase(caseId)
+
+    suspend fun getQrRecordForCase(caseId: String): CaseQrEntity? = withContext(Dispatchers.IO) {
+        caseQrDao.getQrForCase(caseId)
+    }
+
+    suspend fun updateCaseQrStatus(
+        caseId: String,
+        newStatus: String,
+        reason: String? = null,
+        revokedBy: String? = null
+    ) = withContext(Dispatchers.IO) {
+        caseQrDao.updateQrStatus(caseId, newStatus, System.currentTimeMillis(), revokedBy, reason)
+        if (newStatus == "REVOKED") {
+            DurgaBackendClient.revokeCaseQr(caseId, reason ?: "Revoked by authority", revokedBy ?: "Officer")
+        }
+    }
 
     suspend fun getCaseBySecureToken(token: String): CaseEntity? = withContext(Dispatchers.IO) {
         caseDao.getCaseBySecureToken(token)

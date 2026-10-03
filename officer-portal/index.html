@@ -105,6 +105,19 @@
               </div>
             </div>
             <div class="form-group">
+              <label>Standard Police Response Phrases:</label>
+              <select id="standard-phrases-select" onchange="applyStandardPhrase()">
+                <option value="">-- Select Standard Police Response Phrase --</option>
+                <option value="First Response Patrol Dispatched to incident location. Complainant contacted and verified safe.">Patrol Dispatched & Complainant Safe</option>
+                <option value="Complainant interview conducted under Section 154 CrPC / BNSS. Statutory Mahila Desk inquiry active.">Victim Interview Conducted (Mahila Desk)</option>
+                <option value="Digital evidence and chat records secured. Cyber Crime unit requisitioned for IP & profile tracing.">Digital Evidence Secured / Cyber Unit Requisitioned</option>
+                <option value="Suspect summoned to station for formal interrogation and preventive restraining notice issued.">Suspect Summoned & Restraining Notice Issued</option>
+                <option value="Station area patrol increased near jurisdiction sector. Dedicated women helpline liaison assigned.">Enhanced Area Patrol & Liaison Assigned</option>
+                <option value="Investigation completed. Protective security order confirmed and case docket filed for judicial review.">Investigation Complete & Protective Order Confirmed</option>
+                <option value="Dispute amicably resolved in presence of counseling cell and family welfare committee.">Amicably Resolved via Counseling Cell</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Officer Dispatch Notes / Station Remarks:</label>
               <textarea id="action-remarks" rows="3" placeholder="Enter official police action taken or instructions given to complainant..."></textarea>
             </div>

@@ -167,7 +167,8 @@ object DurgaBackendClient {
                 totalEvidenceCount = evSummary?.optInt("totalCount", 0) ?: 0,
                 timeline = timelineList,
                 secureToken = json.optString("secureToken", cleanCode),
-                isQrActive = json.optBoolean("isQrActive", true)
+                isQrActive = json.optBoolean("isQrActive", true),
+                qrStatus = json.optString("qrStatus", if (json.optBoolean("isQrActive", true)) "ACTIVE" else "REVOKED")
             )
 
             Result.success(verified)
@@ -304,5 +305,58 @@ object DurgaBackendClient {
                 verifiedDate = "2026-01-01"
             )
         )
+    }
+
+    suspend fun postTimelineEvent(
+        caseId: String,
+        eventType: String,
+        title: String,
+        description: String,
+        actorName: String = "Duty Officer",
+        actorRole: String = "POLICE_OFFICER"
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val json = JSONObject().apply {
+                put("eventType", eventType)
+                put("title", title)
+                put("description", description)
+                put("actorName", actorName)
+                put("actorRole", actorRole)
+            }
+            val request = Request.Builder()
+                .url("$DEFAULT_BACKEND_URL/cases/$caseId/timeline")
+                .post(json.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = try {
+                client.newCall(request).execute()
+            } catch (ex: Exception) {
+                null
+            }
+            Result.success(response?.isSuccessful ?: false)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun revokeCaseQr(caseId: String, reason: String, revokedBy: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val json = JSONObject().apply {
+                put("caseId", caseId)
+                put("reason", reason)
+                put("revokedBy", revokedBy)
+            }
+            val request = Request.Builder()
+                .url("$DEFAULT_BACKEND_URL/cases/revoke-qr")
+                .post(json.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = try {
+                client.newCall(request).execute()
+            } catch (ex: Exception) {
+                null
+            }
+            Result.success(response?.isSuccessful ?: false)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

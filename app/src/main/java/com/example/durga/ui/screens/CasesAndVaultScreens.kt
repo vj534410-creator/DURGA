@@ -118,6 +118,7 @@ fun MyCasesScreen(
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
     onNavigate: ((String) -> Unit)? = null,
+    onNavigateToScanner: () -> Unit = {},
     onOpenFeatureSwitcher: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -225,6 +226,33 @@ fun MyCasesScreen(
                             )
                         )
                     }
+                }
+            }
+
+            item {
+                Button(
+                    onClick = onNavigateToScanner,
+                    colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .minimumInteractiveComponentSize()
+                        .testTag("scan_complaint_qr_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode,
+                        contentDescription = "Scan Complaint QR",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "SCAN COMPLAINT QR",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
                 }
             }
 
@@ -389,6 +417,7 @@ fun CaseDetailsScreen(
     caseUpdates: List<CaseUpdateEntity>,
     onBack: () -> Unit,
     onNavigateToNotifications: () -> Unit = {},
+    onOpenCaseRecord: () -> Unit = {},
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
     onOpenFeatureSwitcher: (() -> Unit)? = null,
@@ -509,44 +538,60 @@ fun CaseDetailsScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
                     border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenCaseRecord() }
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(54.dp)
-                                .background(DurgaSectionSoft, RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCode,
-                                contentDescription = "Case QR",
-                                tint = DurgaPrimaryNavy,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .background(DurgaSectionSoft, RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCode,
+                                    contentDescription = "Case QR",
+                                    tint = DurgaPrimaryNavy,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column {
+                                Text(
+                                    text = "Verification QR & Dossier",
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = DurgaTextNavy
+                                    )
+                                )
+                                Text(
+                                    text = "Tap to view full Case Record & printable PDF",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = DurgaTextSecondaryMuted,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column {
-                            Text(
-                                text = "Verification QR Token",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = DurgaTextNavy
-                                )
+                        Text(
+                            text = "View →",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = DurgaBlueAction
                             )
-                            Text(
-                                text = "Token: ${caseEntity?.secureToken?.take(16) ?: "PROTECTED"}. No personal identifiers visible.",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = DurgaTextSecondaryMuted,
-                                    fontSize = 11.sp
-                                )
-                            )
-                        }
+                        )
                     }
                 }
             }

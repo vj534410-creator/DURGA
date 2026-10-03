@@ -25,6 +25,7 @@ import com.example.durga.model.IncidentCategory
 import com.example.durga.model.NearbyPlace
 import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
+import com.example.durga.model.VerifiedCaseRecord
 import com.example.durga.model.SosActiveSession
 import com.example.durga.model.SosCallState
 import com.example.durga.model.SosLocationState
@@ -153,6 +154,47 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
     // Selected Case for Details
     private val _selectedCaseId = MutableStateFlow<String?>(null)
     val selectedCaseId: StateFlow<String?> = _selectedCaseId.asStateFlow()
+
+    // Scanned Verified Case Record & Error state
+    private val _verifiedScannedRecord = MutableStateFlow<VerifiedCaseRecord?>(null)
+    val verifiedScannedRecord: StateFlow<VerifiedCaseRecord?> = _verifiedScannedRecord.asStateFlow()
+
+    private val _isVerifyingQr = MutableStateFlow(false)
+    val isVerifyingQr: StateFlow<Boolean> = _isVerifyingQr.asStateFlow()
+
+    private val _qrVerificationError = MutableStateFlow<String?>(null)
+    val qrVerificationError: StateFlow<String?> = _qrVerificationError.asStateFlow()
+
+    fun clearQrVerificationError() {
+        _qrVerificationError.value = null
+    }
+
+    fun setVerifiedScannedRecord(record: VerifiedCaseRecord?) {
+        _verifiedScannedRecord.value = record
+    }
+
+    fun verifyScannedCaseQr(tokenOrCode: String, onVerified: (VerifiedCaseRecord) -> Unit) {
+        viewModelScope.launch {
+            _isVerifyingQr.value = true
+            _qrVerificationError.value = null
+            val result = repository.verifyCaseQrToken(tokenOrCode)
+            _isVerifyingQr.value = false
+            result.onSuccess { record ->
+                _verifiedScannedRecord.value = record
+                _selectedCaseId.value = record.caseId
+                onVerified(record)
+            }.onFailure { err ->
+                val msg = when {
+                    err is IllegalStateException -> "This Case QR is no longer active."
+                    err is NoSuchElementException -> "Case record not found."
+                    err.message?.contains("inactive", true) == true -> "This Case QR is no longer active."
+                    err.message?.contains("not found", true) == true -> "Case record not found."
+                    else -> "Invalid DURGA Case QR"
+                }
+                _qrVerificationError.value = msg
+            }
+        }
+    }
 
     // Location state for Help Near Me & SOS
     private val _userCoordinates = MutableStateFlow<Pair<Double, Double>>(Pair(23.0225, 72.5714))
@@ -1205,6 +1247,60 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val officer = _authorityStaffId.value.ifBlank { "Authority Officer" }
             repository.updateCaseStatus(caseId, newStatus, message, officer)
+        }
+    }
+
+    fun getTimelineForCase(caseId: String): Flow<List<com.example.durga.model.CaseTimelineEntity>> =
+        repository.getTimelineForCase(caseId)
+
+    fun observeQrForCase(caseId: String): Flow<com.example.durga.model.CaseQrEntity?> =
+        repository.observeQrForCase(caseId)
+
+    fun addManualTimelineEvent(
+        caseId: String,
+        eventType: String,
+        title: String,
+        description: String,
+        officerName: String? = null
+    ) {
+        viewModelScope.launch {
+            val actor = officerName?.ifBlank { null }
+                ?: _authorityStaffId.value.ifBlank { null }
+                ?: "Insp. R. Sharma (POL-GJ-4029)"
+            val role = _authorityUserRole.value?.title ?: "POLICE_OFFICER"
+            repository.addTimelineEvent(
+                caseId = caseId,
+                eventType = eventType,
+                title = title,
+                description = description,
+                actorName = actor,
+                actorRole = role
+            )
+            repository.recordAuditLog(
+                AuditAccessLogEntity(
+                    caseId = caseId,
+                    authorityId = actor,
+                    role = role,
+                    action = "TIMELINE_EVENT_ADDED",
+                    reason = "Added event '$title' ($eventType) to case timeline"
+                )
+            )
+        }
+    }
+
+    fun updateCaseQrStatus(caseId: String, newStatus: String, reason: String? = null) {
+        viewModelScope.launch {
+            val officer = _authorityStaffId.value.ifBlank { "Authority Officer" }
+            repository.updateCaseQrStatus(caseId, newStatus, reason, officer)
+            repository.recordAuditLog(
+                AuditAccessLogEntity(
+                    caseId = caseId,
+                    authorityId = officer,
+                    role = _authorityUserRole.value?.title ?: "OFFICER",
+                    action = "QR_STATUS_UPDATED",
+                    reason = "QR Status changed to $newStatus. Reason: ${reason ?: "Official update"}"
+                )
+            )
         }
     }
 

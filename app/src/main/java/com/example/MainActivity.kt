@@ -30,6 +30,7 @@ import com.example.durga.ui.screens.AiComplaintDraftScreen
 import com.example.durga.ui.screens.AuthorityAdminDashboardScreen
 import com.example.durga.ui.screens.CaseCreatedScreen
 import com.example.durga.ui.screens.CaseDetailsScreen
+import com.example.durga.ui.screens.CaseRecordScreen
 import com.example.durga.ui.screens.CaptureEvidenceScreen
 import com.example.durga.ui.screens.CaseNotificationsScreen
 import com.example.durga.ui.screens.ChildFriendlyScreen
@@ -50,6 +51,7 @@ import com.example.durga.ui.screens.LanguageSelectionScreen
 import com.example.durga.ui.screens.MyCasesScreen
 import com.example.durga.ui.screens.PrivacyCenterScreen
 import com.example.durga.ui.screens.PrivateVaultScreen
+import com.example.durga.ui.screens.ScanCaseQrScreen
 import com.example.durga.ui.screens.SelectWhatToShareScreen
 import com.example.durga.ui.screens.SettingsScreen
 import com.example.durga.ui.screens.WitnessReportScreen
@@ -84,6 +86,8 @@ object DurgaRoutes {
     const val CASE_NOTIFICATIONS = "case_notifications"
     const val SETTINGS = "settings"
     const val CAPTURE_EVIDENCE = "capture_evidence"
+    const val SCAN_CASE_QR = "scan_case_qr"
+    const val CASE_RECORD = "case_record"
 }
 
 class MainActivity : ComponentActivity() {
@@ -145,6 +149,10 @@ fun DurgaApp(
     val selectedCaseId by viewModel.selectedCaseId.collectAsState()
     val selectedCaseUpdates by viewModel.getUpdatesForSelectedCase().collectAsState(initial = emptyList())
     val currentTheme by viewModel.currentTheme.collectAsState()
+
+    val verifiedScannedRecord by viewModel.verifiedScannedRecord.collectAsState()
+    val isVerifyingQr by viewModel.isVerifyingQr.collectAsState()
+    val qrVerificationError by viewModel.qrVerificationError.collectAsState()
 
     val allNotifications by viewModel.allNotifications.collectAsState()
     val unreadNotificationsCount by viewModel.unreadNotificationsCount.collectAsState()
@@ -260,6 +268,9 @@ fun DurgaApp(
                         },
                         onNavigateToCaptureEvidence = { initialMode ->
                             navController.navigate(DurgaRoutes.CAPTURE_EVIDENCE)
+                        },
+                        onNavigateToScanner = {
+                            navController.navigate(DurgaRoutes.SCAN_CASE_QR)
                         },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
@@ -455,6 +466,11 @@ fun DurgaApp(
                     CaseCreatedScreen(
                         currentLanguage = currentLang,
                         createdCase = caseItem,
+                        onViewCaseRecord = {
+                            viewModel.selectCase(caseItem.caseId)
+                            viewModel.setVerifiedScannedRecord(null)
+                            navController.navigate(DurgaRoutes.CASE_RECORD)
+                        },
                         onTrackCases = { navController.navigate(DurgaRoutes.MY_CASES) },
                         onGoHome = {
                             navController.navigate(DurgaRoutes.HOME) {
@@ -475,6 +491,7 @@ fun DurgaApp(
                         },
                         onBack = { navController.popBackStack() },
                         onNavigateToNotifications = { navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS) },
+                        onNavigateToScanner = { navController.navigate(DurgaRoutes.SCAN_CASE_QR) },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
@@ -489,6 +506,61 @@ fun DurgaApp(
                         caseUpdates = selectedCaseUpdates,
                         onBack = { navController.popBackStack() },
                         onNavigateToNotifications = { navController.navigate(DurgaRoutes.CASE_NOTIFICATIONS) },
+                        onOpenCaseRecord = { navController.navigate(DurgaRoutes.CASE_RECORD) },
+                        onLanguageChange = { viewModel.setLanguage(it) },
+                        onQuickExit = { viewModel.triggerQuickExit() }
+                    )
+                }
+
+                // 15B. Statutory Case Record & Case QR Screen
+                composable(DurgaRoutes.CASE_RECORD) {
+                    val caseItem = allCases.find { it.caseId == selectedCaseId } ?: lastSubmittedCase ?: allCases.firstOrNull()
+                    val targetCaseId = verifiedScannedRecord?.caseId ?: caseItem?.caseId ?: ""
+                    val caseEvidence = allEvidence.filter { it.caseId == targetCaseId }
+                    val caseTimelineEvents by viewModel.getTimelineForCase(targetCaseId).collectAsState(initial = emptyList())
+                    val caseQrRecord by viewModel.observeQrForCase(targetCaseId).collectAsState(initial = null)
+
+                    CaseRecordScreen(
+                        currentLanguage = currentLang,
+                        verifiedRecord = verifiedScannedRecord,
+                        fallbackCaseEntity = caseItem,
+                        fallbackUpdates = selectedCaseUpdates,
+                        fallbackEvidence = caseEvidence,
+                        caseQrRecord = caseQrRecord,
+                        caseTimelineEvents = caseTimelineEvents,
+                        onAddTimelineEvent = { eventType, title, desc, officer ->
+                            viewModel.addManualTimelineEvent(targetCaseId, eventType, title, desc, officer)
+                        },
+                        onUpdateQrStatus = { newStatus ->
+                            viewModel.updateCaseQrStatus(targetCaseId, newStatus)
+                        },
+                        onBack = { navController.popBackStack() },
+                        onNavigateToHome = {
+                            navController.navigate(DurgaRoutes.HOME) {
+                                popUpTo(DurgaRoutes.HOME) { inclusive = false }
+                            }
+                        },
+                        onNavigateToMyCases = { navController.navigate(DurgaRoutes.MY_CASES) },
+                        onNavigateToScanner = { navController.navigate(DurgaRoutes.SCAN_CASE_QR) },
+                        onLanguageChange = { viewModel.setLanguage(it) },
+                        onQuickExit = { viewModel.triggerQuickExit() }
+                    )
+                }
+
+                // 15C. Dedicated Case QR Scanner Screen
+                composable(DurgaRoutes.SCAN_CASE_QR) {
+                    ScanCaseQrScreen(
+                        currentLanguage = currentLang,
+                        isVerifying = isVerifyingQr,
+                        verificationError = qrVerificationError,
+                        onVerifyToken = { code, onSucc ->
+                            viewModel.verifyScannedCaseQr(code, onSucc)
+                        },
+                        onVerifiedSuccess = { record ->
+                            navController.navigate(DurgaRoutes.CASE_RECORD)
+                        },
+                        onClearError = { viewModel.clearQrVerificationError() },
+                        onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )

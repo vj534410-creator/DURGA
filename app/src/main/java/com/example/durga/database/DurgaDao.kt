@@ -14,6 +14,8 @@ import com.example.durga.model.EvidenceEntity
 import com.example.durga.model.OfficialServiceEntity
 import com.example.durga.model.SafetyCardEntity
 import com.example.durga.model.TrustedContactEntity
+import com.example.durga.model.CaseTimelineEntity
+import com.example.durga.model.CaseQrEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -207,6 +209,42 @@ interface TrustedContactDao {
 
     @Query("DELETE FROM trusted_contacts")
     suspend fun deleteAllContacts()
+}
+
+@Dao
+interface CaseTimelineDao {
+    @Query("SELECT * FROM case_timeline WHERE caseId = :caseId ORDER BY timestamp ASC")
+    fun getTimelineForCase(caseId: String): Flow<List<CaseTimelineEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvent(event: CaseTimelineEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvents(events: List<CaseTimelineEntity>)
+
+    @Query("DELETE FROM case_timeline WHERE caseId = :caseId")
+    suspend fun deleteTimelineForCase(caseId: String)
+}
+
+@Dao
+interface CaseQrDao {
+    @Query("SELECT * FROM case_qr WHERE caseId = :caseId ORDER BY createdAt DESC LIMIT 1")
+    fun observeQrForCase(caseId: String): Flow<CaseQrEntity?>
+
+    @Query("SELECT * FROM case_qr WHERE caseId = :caseId ORDER BY createdAt DESC LIMIT 1")
+    suspend fun getQrForCase(caseId: String): CaseQrEntity?
+
+    @Query("SELECT * FROM case_qr WHERE token = :token LIMIT 1")
+    suspend fun getQrByToken(token: String): CaseQrEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateQr(qr: CaseQrEntity)
+
+    @Query("UPDATE case_qr SET qrStatus = :status, revokedAt = :timestamp, revokedBy = :revokedBy, revocationReason = :reason WHERE caseId = :caseId")
+    suspend fun updateQrStatus(caseId: String, status: String, timestamp: Long = System.currentTimeMillis(), revokedBy: String? = null, reason: String? = null)
+
+    @Query("DELETE FROM case_qr WHERE caseId = :caseId")
+    suspend fun deleteQrForCase(caseId: String)
 }
 
 

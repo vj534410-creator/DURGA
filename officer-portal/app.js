@@ -89,6 +89,20 @@ function selectCase(refNo) {
 
   document.getElementById('action-status-select').value = activeCase.current_status;
   document.getElementById('action-remarks').value = '';
+  const phraseSelect = document.getElementById('standard-phrases-select');
+  if (phraseSelect) phraseSelect.value = '';
+}
+
+function applyStandardPhrase() {
+  const select = document.getElementById('standard-phrases-select');
+  const textarea = document.getElementById('action-remarks');
+  if (select && textarea && select.value) {
+    if (textarea.value.trim() === '') {
+      textarea.value = select.value;
+    } else {
+      textarea.value = textarea.value.trim() + '\n' + select.value;
+    }
+  }
 }
 
 async function submitOfficerAction() {

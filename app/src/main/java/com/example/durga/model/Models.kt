@@ -247,7 +247,8 @@ data class VerifiedCaseRecord(
     val totalEvidenceCount: Int = 0,
     val timeline: List<VerifiedTimelineEvent> = emptyList(),
     val secureToken: String = "",
-    val isQrActive: Boolean = true
+    val isQrActive: Boolean = true,
+    val qrStatus: String = "ACTIVE" // "ACTIVE", "REVOKED", "EXPIRED"
 )
 
 data class VerifiedTimelineEvent(
@@ -256,6 +257,33 @@ data class VerifiedTimelineEvent(
     val description: String,
     val actorName: String,
     val actorRole: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val eventType: String = "OFFICIAL_EVENT"
+)
+
+@Entity(tableName = "case_timeline")
+data class CaseTimelineEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val caseId: String,
+    val eventType: String = "INVESTIGATION_UPDATE",
+    val title: String,
+    val description: String,
+    val actorName: String = "Duty Officer",
+    val actorRole: String = "POLICE_OFFICER",
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "case_qr")
+data class CaseQrEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val caseId: String,
+    val token: String,
+    val qrPayload: String = "",
+    val qrStatus: String = "ACTIVE", // "ACTIVE", "REVOKED", "EXPIRED"
+    val createdAt: Long = System.currentTimeMillis(),
+    val expiresAt: Long? = null,
+    val revokedAt: Long? = null,
+    val revokedBy: String? = null,
+    val revocationReason: String? = null
 )
 

@@ -122,6 +122,20 @@ export interface CaseNoteRecord {
   created_at: string;
 }
 
+export interface CaseQrRecord {
+  id: string;
+  case_id: string;
+  case_ref_no: string;
+  token: string;
+  qr_payload: string;
+  status: 'ACTIVE' | 'REVOKED' | 'EXPIRED'; // Active, Revoked, Expired
+  created_at: string;
+  expires_at?: string;
+  revoked_at?: string;
+  revoked_by?: string;
+  revocation_reason?: string;
+}
+
 // In-Memory resilient database for development / zero-setup mode, seamlessly adaptable to PostgreSQL
 class DatabaseStore {
   users: Map<string, UserRecord> = new Map();
@@ -131,6 +145,7 @@ class DatabaseStore {
   timeline: TimelineEventRecord[] = [];
   auditLogs: AuditLogRecord[] = [];
   caseNotes: CaseNoteRecord[] = [];
+  caseQrs: Map<string, CaseQrRecord> = new Map();
 
   constructor() {
     this.seedDefaultData();
@@ -212,6 +227,17 @@ class DatabaseStore {
       updated_at: new Date().toISOString()
     };
     this.complaints.set(complaint1.id, complaint1);
+
+    // Seed case_qr model entry for complaint 1
+    this.caseQrs.set(caseRef1, {
+      id: uuidv4(),
+      case_id: complaint1.id,
+      case_ref_no: caseRef1,
+      token: complaint1.secure_token || 'sec-tok-08192-durga',
+      qr_payload: `/case/secure/${complaint1.secure_token || 'sec-tok-08192-durga'}`,
+      status: 'ACTIVE',
+      created_at: complaint1.created_at
+    });
 
     // Timeline for complaint 1
     this.timeline.push(

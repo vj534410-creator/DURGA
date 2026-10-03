@@ -1,9 +1,11 @@
 package com.example.durga.ui.screens
 
 import android.app.DatePickerDialog
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,6 +47,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -58,6 +61,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
+import com.example.durga.util.CaseQrHelper
+import com.example.durga.util.CaseRecordPdfGenerator
+import com.example.durga.util.DurgaDateTimeUtil
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -946,10 +955,19 @@ fun FinalConfirmationScreen(
 fun CaseCreatedScreen(
     currentLanguage: DurgaLanguage,
     createdCase: CaseEntity,
+    onViewCaseRecord: () -> Unit,
     onTrackCases: () -> Unit,
     onGoHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val submittedDt = remember(createdCase.createdAt) {
+        DurgaDateTimeUtil.formatEpochMillis(createdCase.createdAt)
+    }
+    val secureToken = createdCase.secureToken.ifBlank { createdCase.caseId }
+    val qrPayload = remember(secureToken) { CaseQrHelper.buildSecureQrPayload(secureToken) }
+    val qrBitmap: Bitmap? = remember(qrPayload) { CaseQrHelper.generateQrBitmap(qrPayload, sizePixels = 400) }
+
     Scaffold(
         containerColor = DurgaBackgroundLight,
         modifier = modifier
@@ -958,13 +976,26 @@ fun CaseCreatedScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Text(
+                text = "DURGA",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Black,
+                    color = DurgaPrimaryNavy,
+                    letterSpacing = 2.sp,
+                    fontSize = 22.sp
+                )
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(56.dp)
                     .background(DurgaSuccessLight, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -976,19 +1007,19 @@ fun CaseCreatedScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = DurgaStrings.get("case_created_title", currentLanguage),
-                style = MaterialTheme.typography.headlineSmall.copy(
+                text = "✓ Complaint Submitted Successfully",
+                style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = DurgaTextNavy,
-                    fontSize = 20.sp
+                    color = DurgaSuccessGreen,
+                    fontSize = 17.sp
                 ),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
@@ -997,14 +1028,14 @@ fun CaseCreatedScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = DurgaStrings.get("case_id_label", currentLanguage),
+                        text = "Case ID:",
                         style = MaterialTheme.typography.labelSmall.copy(color = DurgaTextSecondaryMuted)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = createdCase.caseId,
                         style = MaterialTheme.typography.titleLarge.copy(
@@ -1013,64 +1044,100 @@ fun CaseCreatedScreen(
                             fontSize = 20.sp
                         )
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = DurgaBorderLight, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Status:", style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted, fontSize = 11.sp))
+                            Text(createdCase.status.replace("_", " "), style = MaterialTheme.typography.bodyMedium.copy(color = DurgaSuccessGreen, fontWeight = FontWeight.Bold))
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Submitted:", style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted, fontSize = 11.sp))
+                            Text(submittedDt.fullDisplay, style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextNavy, fontWeight = FontWeight.SemiBold))
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Visually rendered Scannable Case QR Code
             Card(
                 colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
-                border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
-                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.2.dp, DurgaPrimaryNavy.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                Column(
                     modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .background(DurgaSectionSoft, RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCode,
-                            contentDescription = "Case QR Token",
-                            tint = DurgaPrimaryNavy,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = DurgaStrings.get("secure_qr_code", currentLanguage),
+                    Text(
+                        text = "CASE QR CODE",
+                        style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = DurgaTextNavy,
-                            fontSize = 13.sp
+                            color = DurgaPrimaryNavy,
+                            letterSpacing = 0.5.sp
                         )
-                        Text(
-                            text = DurgaStrings.get("qr_privacy_note", currentLanguage),
-                            style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted, fontSize = 11.sp)
-                        )
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (qrBitmap != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(170.dp)
+                                .background(Color.White, RoundedCornerShape(10.dp))
+                                .border(1.dp, DurgaBorderLight, RoundedCornerShape(10.dp))
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = qrBitmap.asImageBitmap(),
+                                contentDescription = "Case QR Code",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(150.dp)
+                                .background(DurgaSectionSoft, RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.QrCode, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(54.dp))
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Secure case reference • Tied permanently to ${createdCase.caseId}",
+                        style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted, fontSize = 11.sp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // 1. View Case Record
             Button(
-                onClick = onTrackCases,
+                onClick = onViewCaseRecord,
                 colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
                     .minimumInteractiveComponentSize()
-                    .testTag("track_cases_button")
+                    .testTag("view_case_record_button")
             ) {
                 Text(
-                    text = DurgaStrings.get("track_cases", currentLanguage),
+                    text = "View Case Record",
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -1078,6 +1145,49 @@ fun CaseCreatedScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // 2. Download Case Record (PDF) & Save QR
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val pdfFile = CaseRecordPdfGenerator.generateCaseRecordPdf(
+                            context = context,
+                            caseEntity = createdCase
+                        )
+                        if (pdfFile != null) {
+                            CaseRecordPdfGenerator.openOrSharePdf(context, pdfFile)
+                        }
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaPrimaryNavy),
+                    modifier = Modifier.weight(1f).height(46.dp).minimumInteractiveComponentSize()
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Download PDF", color = DurgaPrimaryNavy, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        if (qrBitmap != null) {
+                            CaseQrHelper.shareQrCode(context, qrBitmap, createdCase.caseId)
+                        }
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DurgaPrimaryNavy),
+                    modifier = Modifier.weight(1f).height(46.dp).minimumInteractiveComponentSize()
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Save QR", color = DurgaPrimaryNavy, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Return to Home
             Button(
                 onClick = onGoHome,
                 colors = ButtonDefaults.buttonColors(containerColor = DurgaSurfaceWhite),
@@ -1085,10 +1195,10 @@ fun CaseCreatedScreen(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
+                    .height(44.dp)
                     .minimumInteractiveComponentSize()
             ) {
-                Text("Return to Home", color = DurgaTextNavy, fontWeight = FontWeight.SemiBold)
+                Text("Return to Home", color = DurgaTextNavy, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
             }
         }
     }

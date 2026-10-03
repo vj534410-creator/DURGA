@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { db, ComplaintRecord, TimelineEventRecord } from '../db';
+import { db, ComplaintRecord, TimelineEventRecord, CaseQrRecord } from '../db';
 import { AuditService } from '../services/auditService';
 
 const router = Router();
@@ -70,6 +70,18 @@ router.post('/', (req: Request, res: Response): void => {
       timestamp: complaint.created_at
     };
     db.timeline.push(timelineEvent);
+
+    // Save case_qr model entry
+    const qrRecord: CaseQrRecord = {
+      id: uuidv4(),
+      case_id: complaint.id,
+      case_ref_no: complaint.complaint_ref_no,
+      token: complaint.secure_token || complaint.complaint_ref_no,
+      qr_payload: `/case/secure/${complaint.secure_token || complaint.complaint_ref_no}`,
+      status: 'ACTIVE',
+      created_at: complaint.created_at
+    };
+    db.caseQrs.set(complaint.complaint_ref_no, qrRecord);
 
     AuditService.record(
       'CASE_SUBMITTED',
@@ -175,8 +187,15 @@ router.post('/revoke-qr', (req: Request, res: Response): void => {
     return;
   }
   complaint.qr_active = false;
+  const qrEntry = db.caseQrs.get(complaint.complaint_ref_no) ||
+    Array.from(db.caseQrs.values()).find(q => q.case_id === complaint.id);
+  if (qrEntry) {
+    qrEntry.status = 'REVOKED';
+    qrEntry.revoked_at = new Date().toISOString();
+    qrEntry.revocation_reason = req.body?.reason || 'Deactivated by authority';
+  }
   AuditService.record('CASE_QR_REVOKED', 'COMPLAINT', complaint.id, { code: cleanCode }, undefined, undefined, req.ip);
-  res.json({ success: true, message: 'Case QR has been deactivated successfully', caseId: complaint.complaint_ref_no });
+  res.json({ success: true, message: 'Case QR has been deactivated successfully', caseId: complaint.complaint_ref_no, qrStatus: 'REVOKED' });
 });
 
 function handleQrLookup(req: Request, res: Response, rawCode: string): void {
@@ -206,8 +225,17 @@ function handleQrLookup(req: Request, res: Response, rawCode: string): void {
     return;
   }
 
-  if (complaint.qr_active === false) {
-    res.status(403).json({ success: false, error: 'This Case QR is no longer active.', code: 'QR_DEACTIVATED' });
+  const qrRecord = db.caseQrs.get(complaint.complaint_ref_no) ||
+    Array.from(db.caseQrs.values()).find(q => q.case_id === complaint.id || q.token === cleanCode);
+  const qrStatus = qrRecord?.status || (complaint.qr_active === false ? 'REVOKED' : 'ACTIVE');
+
+  if (qrStatus === 'REVOKED') {
+    res.status(403).json({ success: false, error: 'This Case QR is no longer active.', code: 'QR_DEACTIVATED', qrStatus: 'REVOKED' });
+    return;
+  }
+
+  if (qrStatus === 'EXPIRED') {
+    res.status(403).json({ success: false, error: 'This Case QR has expired.', code: 'QR_EXPIRED', qrStatus: 'EXPIRED' });
     return;
   }
 
@@ -251,7 +279,8 @@ function handleQrLookup(req: Request, res: Response, rawCode: string): void {
     },
     timeline: timelineEvents,
     secureToken: complaint.secure_token,
-    isQrActive: true
+    isQrActive: qrStatus === 'ACTIVE',
+    qrStatus: qrStatus
   });
 }
 
@@ -351,6 +380,80 @@ router.patch('/:id/status', (req: Request, res: Response): void => {
     success: true,
     message: 'Case status updated successfully and recorded in timeline',
     case: complaint
+  });
+});
+
+// POST /cases/:id/timeline - Allows an officer to manually add an 'Event' to case_timeline
+router.post('/:id/timeline', (req: Request, res: Response): void => {
+  const { id } = req.params;
+  const { eventType, title, description, actorName, actorRole } = req.body;
+
+  const complaint = Array.from(db.complaints.values()).find(
+    c => c.id === id || c.complaint_ref_no.equalsIgnoreCase(id)
+  );
+
+  if (!complaint) {
+    res.status(404).json({ success: false, error: 'Case not found' });
+    return;
+  }
+
+  const newEvent: TimelineEventRecord = {
+    id: uuidv4(),
+    case_id: complaint.id,
+    event_type: eventType || 'INVESTIGATION_ACTION',
+    title: title || 'Investigation Action Logged',
+    description: description || 'Field event logged by investigating officer.',
+    actor_name: actorName || 'Duty Officer',
+    actor_role: actorRole || 'POLICE_OFFICER',
+    timestamp: new Date().toISOString()
+  };
+
+  db.timeline.push(newEvent);
+
+  AuditService.record(
+    'TIMELINE_EVENT_ADDED',
+    'CASE_TIMELINE',
+    complaint.id,
+    { eventType: newEvent.event_type, title: newEvent.title, description: newEvent.description },
+    undefined,
+    actorName,
+    req.ip
+  );
+
+  res.status(201).json({
+    success: true,
+    message: 'Event successfully added to case_timeline',
+    event: newEvent
+  });
+});
+
+// GET /cases/:id/qr-status - Pulls QR Status from the case_qr database model
+router.get('/:id/qr-status', (req: Request, res: Response): void => {
+  const { id } = req.params;
+  const complaint = Array.from(db.complaints.values()).find(
+    c => c.id === id || c.complaint_ref_no.equalsIgnoreCase(id)
+  );
+
+  if (!complaint) {
+    res.status(404).json({ success: false, error: 'Case not found' });
+    return;
+  }
+
+  const qrRecord = db.caseQrs.get(complaint.complaint_ref_no) ||
+    Array.from(db.caseQrs.values()).find(q => q.case_id === complaint.id);
+
+  const qrStatus = qrRecord?.status || (complaint.qr_active === false ? 'REVOKED' : 'ACTIVE');
+
+  res.json({
+    success: true,
+    caseId: complaint.complaint_ref_no,
+    qrStatus: qrStatus,
+    isQrActive: qrStatus === 'ACTIVE',
+    token: complaint.secure_token || qrRecord?.token || complaint.complaint_ref_no,
+    createdAt: qrRecord?.created_at || complaint.created_at,
+    expiresAt: qrRecord?.expires_at || null,
+    revokedAt: qrRecord?.revoked_at || null,
+    revokedBy: qrRecord?.revoked_by || null
   });
 });
 
