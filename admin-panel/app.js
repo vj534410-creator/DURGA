@@ -1005,7 +1005,180 @@ function renderAuditLogs() {
 }
 
 // =========================================================
-// 10. INITIALIZATION
+// 10. CAMERA QR SCANNER & CASE STATUS VERIFICATION
+// =========================================================
+
+let cameraStream = null;
+let scanAnimationTimer = null;
+let isVerifyingQr = false;
+
+function openQrScannerModal() {
+  const modal = document.getElementById('qr-scanner-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  const overlay = document.getElementById('camera-status-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    overlay.textContent = 'Initializing officer camera feed...';
+  }
+  const feedback = document.getElementById('scan-feedback-message');
+  if (feedback) feedback.style.display = 'none';
+
+  startCameraFeed();
+}
+
+function closeQrScannerModal() {
+  stopCameraFeed();
+  const modal = document.getElementById('qr-scanner-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function stopCameraFeed() {
+  if (scanAnimationTimer) {
+    cancelAnimationFrame(scanAnimationTimer);
+    scanAnimationTimer = null;
+  }
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('qr-camera-video');
+  if (video) video.srcObject = null;
+}
+
+async function startCameraFeed() {
+  const overlay = document.getElementById('camera-status-overlay');
+  const video = document.getElementById('qr-camera-video');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (overlay) overlay.textContent = 'Camera API not supported in this browser. Enter Token/Ref below.';
+    return;
+  }
+
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    if (video) {
+      video.srcObject = cameraStream;
+      await video.play();
+      if (overlay) overlay.style.display = 'none';
+      scanFrameLoop();
+    }
+  } catch (err) {
+    if (overlay) {
+      overlay.textContent = 'Camera permission required: ' + err.message + '. Please use manual entry below.';
+    }
+  }
+}
+
+async function scanFrameLoop() {
+  if (!cameraStream) return;
+  const video = document.getElementById('qr-camera-video');
+
+  if (video && video.readyState >= 2 && !isVerifyingQr) {
+    if ('BarcodeDetector' in window) {
+      try {
+        const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+        const barcodes = await barcodeDetector.detect(video);
+        if (barcodes && barcodes.length > 0) {
+          const rawCode = barcodes[0].rawValue;
+          if (rawCode) {
+            handleScannedQrResult(rawCode);
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  scanAnimationTimer = requestAnimationFrame(scanFrameLoop);
+}
+
+function extractTokenFromQr(scannedText) {
+  if (!scannedText) return '';
+  let str = scannedText.trim();
+  const prefixes = [
+    'https://durga.gov.in/case/secure/',
+    'durga://case/secure/',
+    '/case/secure/'
+  ];
+  for (const prefix of prefixes) {
+    if (str.startsWith(prefix)) {
+      return str.substring(prefix.length).trim();
+    }
+  }
+  return str;
+}
+
+async function handleScannedQrResult(rawCode) {
+  if (isVerifyingQr) return;
+  isVerifyingQr = true;
+  const cleanCode = extractTokenFromQr(rawCode);
+
+  const feedback = document.getElementById('scan-feedback-message');
+  if (feedback) {
+    feedback.style.display = 'block';
+    feedback.style.background = '#E0F2FE';
+    feedback.style.color = '#0369A1';
+    feedback.innerHTML = `🔍 Verifying Case QR: <code>${cleanCode}</code>...`;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/cases/lookup/qr?code=${encodeURIComponent(cleanCode)}`);
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      if (feedback) {
+        feedback.style.background = '#FEE2E2';
+        feedback.style.color = '#B91C1C';
+        feedback.innerHTML = `⚠️ <strong>Verification Failed:</strong> ${data.error || 'Case QR is inactive or not found.'}`;
+      }
+      isVerifyingQr = false;
+      return;
+    }
+
+    const c = data.case;
+    if (feedback) {
+      feedback.style.background = '#DCFCE7';
+      feedback.style.color = '#15803D';
+      feedback.innerHTML = `
+        ✅ <strong>Case Verified Successfully!</strong><br>
+        <strong>Case:</strong> ${c.complaint_ref_no || c.id} &bull; 
+        <strong>Status:</strong> ${data.currentStatus || c.current_status} &bull; 
+        <strong>QR:</strong> ${data.qrStatus || 'ACTIVE'}
+      `;
+    }
+
+    setTimeout(() => {
+      closeQrScannerModal();
+      isVerifyingQr = false;
+      openCaseDossier(c.id || c.complaint_ref_no);
+    }, 1200);
+
+  } catch (err) {
+    if (feedback) {
+      feedback.style.background = '#FEE2E2';
+      feedback.style.color = '#B91C1C';
+      feedback.innerHTML = `⚠️ Lookup error: ${err.message}`;
+    }
+    isVerifyingQr = false;
+  }
+}
+
+function verifyManualScannedCode() {
+  const input = document.getElementById('manual-scan-token-input');
+  const code = input ? input.value.trim() : '';
+  if (!code) {
+    alert('Please enter a Case Reference No or QR Token');
+    return;
+  }
+  handleScannedQrResult(code);
+}
+
+// =========================================================
+// 11. INITIALIZATION
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {

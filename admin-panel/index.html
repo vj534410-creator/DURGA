@@ -601,6 +601,59 @@
     </div>
   </div>
 
+  <!-- Floating Action Button: Scan QR Code -->
+  <button id="fab-scan-qr" class="fab-scan-qr" onclick="openQrScannerModal()" title="Scan QR Code to verify case status directly">
+    <span class="fab-icon">📷</span>
+    <span class="fab-text">Scan QR Code</span>
+  </button>
+
+  <!-- Camera QR Scanner Modal -->
+  <div id="qr-scanner-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card scanner-modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">📷</span>
+          <div>
+            <h3 style="margin: 0; font-size: 16px;">Verify Case Status via QR Scan</h3>
+            <small style="color: #64748B;">Officer Field Camera & Verification Scanner</small>
+          </div>
+        </div>
+        <button class="btn-close-modal" onclick="closeQrScannerModal()">&times;</button>
+      </div>
+
+      <div class="modal-body scanner-modal-body" style="padding: 20px;">
+        <div class="camera-viewport-container">
+          <video id="qr-camera-video" playsinline autoplay muted></video>
+          <canvas id="qr-camera-canvas" style="display: none;"></canvas>
+          <div class="camera-target-reticle">
+            <div class="reticle-corner top-left"></div>
+            <div class="reticle-corner top-right"></div>
+            <div class="reticle-corner bottom-left"></div>
+            <div class="reticle-corner bottom-right"></div>
+            <div class="laser-scanner-line"></div>
+          </div>
+          <div id="camera-status-overlay" class="camera-status-overlay">
+            Starting officer camera feed...
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; text-align: center;">
+          <p style="font-size: 12px; color: #475569; margin: 0 0 10px 0;">
+            Point camera at a Case QR Code to directly verify status & timeline in the field.
+          </p>
+
+          <!-- Fallback manual input -->
+          <div class="manual-input-row" style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+            <input type="text" id="manual-scan-token-input" placeholder="Or enter Case Ref / Token..." style="padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 12px; width: 240px;" onkeydown="if(event.key==='Enter') verifyManualScannedCode()">
+            <button class="btn btn-primary btn-sm" onclick="verifyManualScannedCode()">Verify Case</button>
+          </div>
+        </div>
+
+        <div id="scan-feedback-message" style="display: none; margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

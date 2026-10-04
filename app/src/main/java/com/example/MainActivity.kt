@@ -730,6 +730,7 @@ fun DurgaApp(
                             navController.navigate(DurgaRoutes.CASE_RECORD)
                         },
                         onNavigateToWebPortals = { navController.navigate(DurgaRoutes.WEB_PORTALS) },
+                        onNavigateToScanQr = { navController.navigate(DurgaRoutes.SCAN_CASE_QR) },
                         onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() }

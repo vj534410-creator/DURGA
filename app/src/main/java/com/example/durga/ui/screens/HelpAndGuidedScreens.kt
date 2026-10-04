@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
 import com.example.ui.theme.DurgaThemeMode
 import com.example.ui.theme.LocalDurgaColors
@@ -71,6 +72,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -1401,6 +1403,7 @@ fun AuthorityAdminDashboardScreen(
     onRecordAuditAction: (caseId: String, action: String, reason: String) -> Unit,
     onViewCaseRecord: ((caseId: String) -> Unit)? = null,
     onNavigateToWebPortals: () -> Unit = {},
+    onNavigateToScanQr: () -> Unit = {},
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
     onQuickExit: () -> Unit,
@@ -1425,6 +1428,31 @@ fun AuthorityAdminDashboardScreen(
                 onLanguageChange = onLanguageChange,
                 onQuickExit = onQuickExit,
                 onOpenFeatureSwitcher = onOpenFeatureSwitcher
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onNavigateToScanQr,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.QrCodeScanner,
+                        contentDescription = "Scan QR Code",
+                        tint = Color.White
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Scan QR Code",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                },
+                containerColor = DurgaPrimaryNavy,
+                contentColor = Color.White,
+                modifier = Modifier
+                    .padding(bottom = 8.dp, end = 4.dp)
+                    .testTag("officer_scan_qr_fab")
             )
         },
         containerColor = DurgaBackgroundLight,
