@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Lock
@@ -60,6 +62,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -67,6 +71,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -1871,18 +1876,53 @@ fun AuthorityAdminDashboardScreen(
         }
     }
 
-    // Case Review & Status Update Dialog
+    // Case Review & Status Update Dialog (Investigation Action in Officer-Portal Dossier)
     if (selectedCaseForReview != null) {
         val currentCase = selectedCaseForReview!!
+        var showPolicePhrasesDropdown by remember { mutableStateOf(false) }
+
+        val standardPolicePhrases = listOf(
+            "First response dispatched to incident location for spot verification.",
+            "Complainant contacted via registered phone; official statement recorded.",
+            "Patrol unit mobilized in the sector; heightened vigilance initiated.",
+            "Digital evidence secured; CCTV surveillance footage requisitioned.",
+            "Person of interest identified; summoned to station for formal interrogation.",
+            "Medical examination and psychological counseling coordinated for victim.",
+            "On-site dispute de-escalated; mutual undertaking recorded with warning.",
+            "Formal FIR registered under statutory women safety provisions.",
+            "Site inspection completed; area declared secure with no ongoing threat.",
+            "Case dossier transferred to Specialized Women Safety Cell for further inquiry."
+        )
+
         AlertDialog(
             onDismissRequest = { selectedCaseForReview = null },
             title = {
-                Text(
-                    text = "Official Case Review: ${currentCase.caseId}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = DurgaTextNavy
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "INVESTIGATION ACTION DOSSIER",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = DurgaPrimaryNavy,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                        Text(
+                            text = "Case: ${currentCase.caseId}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = DurgaTextNavy
+                        )
+                    }
+
+                    // Visual 'QR Status' badge pulling from case_qr data model
+                    val qrState = if (currentCase.serverSyncError?.contains("REVOKED", true) == true) "REVOKED" else "ACTIVE"
+                    QrStatusBadge(status = qrState)
+                }
             },
             text = {
                 Column(
@@ -1939,12 +1979,84 @@ fun AuthorityAdminDashboardScreen(
                         }
                     }
 
+                    // --- Standard Police Response Phrases Dropdown Menu ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Officer Dispatch Notes:",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = DurgaTextNavy
+                            )
+                        )
+
+                        Box {
+                            OutlinedButton(
+                                onClick = { showPolicePhrasesDropdown = true },
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .testTag("standard_police_phrases_dropdown_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FormatQuote,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = DurgaPrimaryNavy
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Standard Phrases",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DurgaPrimaryNavy
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = DurgaPrimaryNavy
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showPolicePhrasesDropdown,
+                                onDismissRequest = { showPolicePhrasesDropdown = false }
+                            ) {
+                                standardPolicePhrases.forEach { phrase ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = phrase,
+                                                fontSize = 12.sp,
+                                                lineHeight = 15.sp,
+                                                color = DurgaTextNavy
+                                            )
+                                        },
+                                        onClick = {
+                                            officerNoteText = phrase
+                                            showPolicePhrasesDropdown = false
+                                        },
+                                        modifier = Modifier.testTag("phrase_item_${phrase.take(12).replace(" ", "_")}")
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = officerNoteText,
                         onValueChange = { officerNoteText = it },
-                        label = { Text("Officer Action Remarks / Dispatch Note", fontSize = 11.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 2
+                        placeholder = { Text("Enter detailed findings or select standard phrase above...", fontSize = 11.sp) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("officer_dispatch_notes_textarea"),
+                        minLines = 2,
+                        maxLines = 4
                     )
                 }
             },

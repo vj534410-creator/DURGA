@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,9 +26,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -41,6 +44,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -163,6 +168,20 @@ fun CaseRecordScreen(
         mutableStateOf(investigatingOfficer.takeIf { it != "Not assigned yet" } ?: "Insp. R. Sharma (POL-GJ-4029)")
     }
     var eventSuccessMessage by remember { mutableStateOf("") }
+    var showPolicePhrasesDropdown by remember { mutableStateOf(false) }
+
+    val standardPolicePhrases = listOf(
+        "First response dispatched to incident location for spot verification.",
+        "Complainant contacted via registered phone; official statement recorded.",
+        "Patrol unit mobilized in the sector; heightened vigilance initiated.",
+        "Digital evidence secured; CCTV surveillance footage requisitioned.",
+        "Person of interest identified; summoned to station for formal interrogation.",
+        "Medical examination and psychological counseling coordinated for victim.",
+        "On-site dispute de-escalated; mutual undertaking recorded with warning.",
+        "Formal FIR registered under statutory women safety provisions.",
+        "Site inspection completed; area declared secure with no ongoing threat.",
+        "Case dossier transferred to Specialized Women Safety Cell for further inquiry."
+    )
 
     Scaffold(
         topBar = {
@@ -688,12 +707,82 @@ fun CaseRecordScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        // Event Description Field / Officer Dispatch Notes Header with Dropdown
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Event Description / Officer Dispatch Notes *",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = DurgaTextNavy
+                                )
+                            )
+
+                            Box {
+                                OutlinedButton(
+                                    onClick = { showPolicePhrasesDropdown = true },
+                                    shape = RoundedCornerShape(6.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier
+                                        .defaultMinSize(minHeight = 28.dp)
+                                        .testTag("standard_police_phrases_dropdown_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FormatQuote,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = DurgaPrimaryNavy
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Standard Phrases",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = DurgaPrimaryNavy
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = DurgaPrimaryNavy
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showPolicePhrasesDropdown,
+                                    onDismissRequest = { showPolicePhrasesDropdown = false }
+                                ) {
+                                    standardPolicePhrases.forEach { phrase ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = phrase,
+                                                    fontSize = 12.sp,
+                                                    lineHeight = 15.sp,
+                                                    color = DurgaTextNavy
+                                                )
+                                            },
+                                            onClick = {
+                                                eventDescriptionText = phrase
+                                                showPolicePhrasesDropdown = false
+                                            },
+                                            modifier = Modifier.testTag("case_record_phrase_${phrase.take(12).replace(" ", "_")}")
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
                         // Event Description Field
                         OutlinedTextField(
                             value = eventDescriptionText,
                             onValueChange = { eventDescriptionText = it },
-                            label = { Text("Event Description / Official Remarks *", fontSize = 11.sp) },
-                            placeholder = { Text("Enter detailed findings, officer actions, or incident remarks...", fontSize = 11.sp) },
+                            placeholder = { Text("Enter detailed findings, officer actions, or select standard police phrase above...", fontSize = 11.sp) },
                             minLines = 2,
                             maxLines = 4,
                             modifier = Modifier

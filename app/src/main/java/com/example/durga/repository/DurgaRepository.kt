@@ -294,6 +294,19 @@ class DurgaRepository(private val context: Context) {
                 )
             )
 
+            // Real-time case_timeline record update
+            caseTimelineDao.insertEvent(
+                CaseTimelineEntity(
+                    caseId = caseId,
+                    eventType = "STATUS_UPDATE",
+                    title = "Status Updated: ${newStatus.replace("_", " ")}",
+                    description = message,
+                    actorName = updatedBy,
+                    actorRole = "POLICE_OFFICER",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+
             val existingCase = caseDao.getCaseById(caseId)
             val (progress, isAction, actionStatus) = when (newStatus) {
                 CaseStatus.RECEIVED.name, CaseStatus.RECEIVED.displayName -> Triple(35, false, "ડેસ્ક દ્વારા સ્વીકૃત (Received)")
