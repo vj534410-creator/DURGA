@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Schedule
@@ -353,19 +354,42 @@ fun CaseRecordScreen(
                             ) {
                                 Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Save / Share QR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Save QR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
 
                             OutlinedButton(
-                                onClick = onNavigateToScanner,
+                                onClick = {
+                                    CaseQrHelper.printOrShareFieldQrPass(
+                                        context = context,
+                                        caseId = caseId,
+                                        token = secureToken,
+                                        title = title,
+                                        category = category,
+                                        status = status,
+                                        officerName = investigatingOfficer.takeIf { it != "Not assigned yet" } ?: "Duty Officer"
+                                    )
+                                },
                                 shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, DurgaPrimaryNavy),
                                 modifier = Modifier.weight(1f).height(44.dp).minimumInteractiveComponentSize()
                             ) {
-                                Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Print, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Scan Another QR", color = DurgaPrimaryNavy, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Print Field Pass", color = DurgaPrimaryNavy, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = onNavigateToScanner,
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight),
+                            modifier = Modifier.fillMaxWidth().height(40.dp).minimumInteractiveComponentSize()
+                        ) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = DurgaPrimaryNavy, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Scan Another QR Code", color = DurgaPrimaryNavy, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
                         }
                     }
                 }

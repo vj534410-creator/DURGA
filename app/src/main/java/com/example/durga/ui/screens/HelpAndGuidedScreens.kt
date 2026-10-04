@@ -1,12 +1,16 @@
 package com.example.durga.ui.screens
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.asImageBitmap
+import com.example.durga.util.CaseQrHelper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +50,9 @@ import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Share
 import com.example.ui.theme.DurgaThemeMode
 import com.example.ui.theme.LocalDurgaColors
 import com.example.ui.theme.LocalDurgaThemeMode
@@ -1392,6 +1399,7 @@ fun AuthorityAdminDashboardScreen(
     onLogout: () -> Unit,
     onUpdateCaseStatus: (caseId: String, status: String, msg: String) -> Unit,
     onRecordAuditAction: (caseId: String, action: String, reason: String) -> Unit,
+    onViewCaseRecord: ((caseId: String) -> Unit)? = null,
     onNavigateToWebPortals: () -> Unit = {},
     onBack: () -> Unit,
     onLanguageChange: (DurgaLanguage) -> Unit,
@@ -1403,6 +1411,7 @@ fun AuthorityAdminDashboardScreen(
     var selectedRole by remember { mutableStateOf(AuthorityRole.AUTHORITY_STAFF) }
     var activeTab by remember { mutableStateOf(0) }
     var selectedCaseForReview by remember { mutableStateOf<CaseEntity?>(null) }
+    var selectedCaseForQr by remember { mutableStateOf<CaseEntity?>(null) }
     var updateStatusSelection by remember { mutableStateOf("UNDER_INVESTIGATION") }
     var officerNoteText by remember { mutableStateOf("") }
 
@@ -1734,12 +1743,7 @@ fun AuthorityAdminDashboardScreen(
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
-                                            selectedCaseForReview = caseItem
-                                            updateStatusSelection = caseItem.status
-                                            officerNoteText = ""
-                                            onRecordAuditAction(caseItem.caseId, "VIEW_CASE", "Officer $staffId reviewing details")
-                                        },
+                                        .testTag("case_item_card_${caseItem.caseId}"),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(containerColor = DurgaSurfaceWhite),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, DurgaBorderLight)
@@ -1754,6 +1758,7 @@ fun AuthorityAdminDashboardScreen(
                                                 text = caseItem.caseId,
                                                 style = MaterialTheme.typography.titleSmall.copy(
                                                     fontWeight = FontWeight.Bold,
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                                     color = DurgaPrimaryNavy
                                                 )
                                             )
@@ -1789,12 +1794,89 @@ fun AuthorityAdminDashboardScreen(
                                             )
                                         )
                                         Text(
-                                            text = "${caseItem.category} • Tap to review & update status",
+                                            text = "${caseItem.category} • Incident: ${caseItem.incidentLocation.ifBlank { "Recorded" }}",
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 color = DurgaTextSecondaryMuted,
                                                 fontSize = 11.sp
                                             )
                                         )
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        HorizontalDivider(color = DurgaBorderLight, thickness = 0.6.dp)
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // Field QR and Review Actions
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.QrCode,
+                                                    contentDescription = null,
+                                                    tint = DurgaPrimaryNavy,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Field QR Ready",
+                                                    fontSize = 10.5.sp,
+                                                    color = DurgaPrimaryNavy,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        selectedCaseForQr = caseItem
+                                                        onRecordAuditAction(caseItem.caseId, "GENERATE_FIELD_QR", "Officer $staffId opened field QR pass")
+                                                    },
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+                                                    modifier = Modifier
+                                                        .defaultMinSize(minHeight = 28.dp)
+                                                        .testTag("field_qr_btn_${caseItem.caseId}")
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.QrCode,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(12.dp),
+                                                        tint = DurgaPrimaryNavy
+                                                    )
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text(
+                                                        text = "Field QR",
+                                                        fontSize = 10.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = DurgaPrimaryNavy
+                                                    )
+                                                }
+
+                                                Button(
+                                                    onClick = {
+                                                        selectedCaseForReview = caseItem
+                                                        updateStatusSelection = caseItem.status
+                                                        officerNoteText = ""
+                                                        onRecordAuditAction(caseItem.caseId, "VIEW_CASE", "Officer $staffId reviewing details")
+                                                    },
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 3.dp),
+                                                    modifier = Modifier
+                                                        .defaultMinSize(minHeight = 28.dp)
+                                                        .testTag("review_case_btn_${caseItem.caseId}")
+                                                ) {
+                                                    Text(
+                                                        text = "Review",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1947,6 +2029,52 @@ fun AuthorityAdminDashboardScreen(
                         lineHeight = 16.sp
                     )
 
+                    // Quick Field QR Banner with Print & Lookup
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(DurgaSectionSoft, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = null,
+                                tint = DurgaPrimaryNavy,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "Field QR Pass Active",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DurgaPrimaryNavy
+                                )
+                                Text(
+                                    text = "Unique case token generated",
+                                    fontSize = 9.sp,
+                                    color = DurgaTextSecondaryMuted
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                selectedCaseForQr = currentCase
+                            },
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier
+                                .defaultMinSize(minHeight = 26.dp)
+                                .testTag("dossier_view_qr_pass_btn")
+                        ) {
+                            Text("View / Print QR", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = DurgaPrimaryNavy)
+                        }
+                    }
+
                     HorizontalDivider()
 
                     Text(
@@ -2076,6 +2204,191 @@ fun AuthorityAdminDashboardScreen(
             dismissButton = {
                 TextButton(onClick = { selectedCaseForReview = null }) {
                     Text("Cancel", color = DurgaTextSecondaryMuted)
+                }
+            }
+        )
+    }
+
+    // Officer Field QR Docket & Rapid Status Lookup Dialog
+    if (selectedCaseForQr != null) {
+        val qrCase = selectedCaseForQr!!
+        val context = LocalContext.current
+        val qrBitmap: Bitmap? = remember(qrCase.caseId, qrCase.secureToken) {
+            CaseQrHelper.generateQrBitmap(
+                CaseQrHelper.buildSecureQrPayload(qrCase.secureToken.ifBlank { qrCase.caseId }),
+                sizePixels = 500
+            )
+        }
+        val qrState = if (qrCase.serverSyncError?.contains("REVOKED", true) == true) "REVOKED" else "ACTIVE"
+
+        AlertDialog(
+            onDismissRequest = { selectedCaseForQr = null },
+            modifier = Modifier.testTag("field_qr_pass_dialog"),
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "OFFICIAL FIELD QR PASS",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = DurgaPrimaryNavy,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                        Text(
+                            text = qrCase.caseId,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = DurgaTextNavy
+                            )
+                        )
+                    }
+                    QrStatusBadge(status = qrState)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // High-contrast QR Display Card
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, DurgaPrimaryNavy.copy(alpha = 0.3f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .size(220.dp)
+                        ) {
+                            if (qrBitmap != null) {
+                                Image(
+                                    bitmap = qrBitmap.asImageBitmap(),
+                                    contentDescription = "Unique Case QR for ${qrCase.caseId}",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Text(
+                                    text = "Generating High-Security QR...",
+                                    color = DurgaTextSecondaryMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "Encrypted Token: ${qrCase.secureToken.take(16)}...",
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 10.5.sp,
+                        color = DurgaTextSecondaryMuted
+                    )
+
+                    // Case summary & field details
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = DurgaSectionSoft),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "Category: ${qrCase.category}",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, color = DurgaTextNavy)
+                            )
+                            Text(
+                                text = "Title: ${qrCase.title}",
+                                style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextNavy)
+                            )
+                            if (qrCase.incidentLocation.isNotBlank() && qrCase.incidentLocation != "Not provided") {
+                                Text(
+                                    text = "Location: ${qrCase.incidentLocation}",
+                                    style = MaterialTheme.typography.bodySmall.copy(color = DurgaTextSecondaryMuted, fontSize = 11.sp)
+                                )
+                            }
+                            Text(
+                                text = "Assigned Field Officer: ${staffId ?: "On-duty Unit"}",
+                                style = MaterialTheme.typography.labelSmall.copy(color = DurgaPrimaryNavy, fontWeight = FontWeight.SemiBold)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Authorized personnel can scan this QR using the DURGA App to instantly retrieve verified case history and investigation status.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.5.sp,
+                            color = DurgaTextSecondaryMuted,
+                            textAlign = TextAlign.Center
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Print / Export QR Pass Button
+                    OutlinedButton(
+                        onClick = {
+                            if (qrBitmap != null) {
+                                CaseQrHelper.printOrShareFieldQrPass(
+                                    context = context,
+                                    caseId = qrCase.caseId,
+                                    token = qrCase.secureToken,
+                                    title = qrCase.title,
+                                    category = qrCase.category,
+                                    status = qrCase.status,
+                                    officerName = staffId ?: "Duty Officer"
+                                )
+                                onRecordAuditAction(qrCase.caseId, "PRINT_FIELD_QR_PASS", "Officer $staffId printed/exported field QR pass")
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("print_field_qr_pass_btn")
+                    ) {
+                        Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(15.dp), tint = DurgaPrimaryNavy)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Print / Export", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DurgaPrimaryNavy)
+                    }
+
+                    // Rapid Status Lookup Button
+                    Button(
+                        onClick = {
+                            val targetId = qrCase.caseId
+                            selectedCaseForQr = null
+                            onRecordAuditAction(targetId, "RAPID_STATUS_LOOKUP", "Officer $staffId launched rapid status lookup via field QR pass")
+                            onViewCaseRecord?.invoke(targetId)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DurgaPrimaryNavy),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("rapid_status_lookup_btn")
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Rapid Lookup", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { selectedCaseForQr = null },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Close", color = DurgaTextSecondaryMuted, textAlign = TextAlign.Center)
                 }
             }
         )

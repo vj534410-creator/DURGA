@@ -408,6 +408,23 @@ function closeCaseDossier() {
   document.getElementById('case-dossier-modal').style.display = 'none';
 }
 
+function getCaseVerificationUrl(c) {
+  const token = c.secure_token || c.complaint_ref_no;
+  return `https://durga.gov.in/case/secure/${token}`;
+}
+
+async function generateQrCodeDataUrl(text) {
+  try {
+    const res = await fetch(`/api/generate-qr?text=${encodeURIComponent(text)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.dataUrl) return data.dataUrl;
+    }
+  } catch (_) {}
+  // Universal fallback for offline/isolated rendering
+  return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(text)}&margin=2`;
+}
+
 function populateCaseDossierModal(data) {
   const c = data.case;
   document.getElementById('modal-case-heading').textContent = `Case Dossier: ${c.complaint_ref_no}`;
@@ -416,6 +433,37 @@ function populateCaseDossierModal(data) {
   document.getElementById('modal-incident-datetime').textContent = `${c.incident_date || 'N/A'} • ${c.incident_time || 'N/A'}`;
   document.getElementById('modal-location').textContent = c.incident_location || 'Gujarat, India';
   document.getElementById('modal-officer').textContent = c.assigned_officer_name || c.assigned_officer_id || 'Not Assigned';
+
+  // Dynamic Case QR Code & Verification URL
+  const verificationUrl = getCaseVerificationUrl(c);
+  const verifyUrlLink = document.getElementById('modal-qr-url-link');
+  if (verifyUrlLink) {
+    verifyUrlLink.href = verificationUrl;
+    verifyUrlLink.textContent = verificationUrl;
+  }
+
+  const qrImgLink = document.getElementById('modal-qr-img-link');
+  if (qrImgLink) {
+    qrImgLink.href = verificationUrl;
+  }
+
+  const qrImg = document.getElementById('modal-case-qr-img');
+  if (qrImg) {
+    qrImg.src = '';
+    qrImg.alt = `Dynamic QR Code for ${c.complaint_ref_no}`;
+    generateQrCodeDataUrl(verificationUrl).then(dataUrl => {
+      if (qrImg) qrImg.src = dataUrl;
+    });
+  }
+
+  const qrBadge = document.getElementById('modal-qr-badge');
+  if (qrBadge) {
+    const isRevoked = c.qr_active === false;
+    qrBadge.textContent = isRevoked ? '● QR REVOKED' : '● QR ACTIVE';
+    qrBadge.style.background = isRevoked ? '#FEE2E2' : '#DCFCE7';
+    qrBadge.style.color = isRevoked ? '#B91C1C' : '#15803D';
+    qrBadge.style.borderColor = isRevoked ? '#FCA5A5' : '#86EFAC';
+  }
 
   const statusBadge = document.getElementById('modal-current-status');
   statusBadge.textContent = formatStatus(c.current_status);
@@ -560,6 +608,231 @@ async function submitCaseStatusUpdate() {
 
 function printOfficialDocket() {
   window.print();
+}
+
+function printCaseQr() {
+  if (!activeCaseDossier || !activeCaseDossier.case) {
+    alert('Please select and open a Case Dossier to print QR');
+    return;
+  }
+  const c = activeCaseDossier.case;
+  const verificationUrl = getCaseVerificationUrl(c);
+  const qrImg = document.getElementById('modal-case-qr-img');
+  const qrSrc = qrImg && qrImg.src ? qrImg.src : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(verificationUrl)}`;
+
+  const docketHtml = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>DURGA — Physical Case Docket QR Pass • ${c.complaint_ref_no}</title>
+      <style>
+        @page { size: auto; margin: 12mm; }
+        body {
+          font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+          color: #0F172A;
+          margin: 0;
+          padding: 20px;
+          background: #FFFFFF;
+        }
+        .pass-card {
+          border: 2px dashed #0284C7;
+          border-radius: 12px;
+          padding: 24px;
+          max-width: 520px;
+          margin: 0 auto;
+          box-sizing: border-box;
+          background: #FFFFFF;
+        }
+        .header {
+          text-align: center;
+          border-bottom: 2px solid #0F172A;
+          padding-bottom: 12px;
+          margin-bottom: 16px;
+        }
+        .govt {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 1px;
+          color: #475569;
+          text-transform: uppercase;
+        }
+        .title {
+          font-size: 20px;
+          font-weight: 800;
+          color: #0F172A;
+          margin: 4px 0;
+        }
+        .badge {
+          display: inline-block;
+          background: #E0F2FE;
+          color: #0369A1;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 4px;
+          margin-top: 4px;
+        }
+        .qr-wrapper {
+          text-align: center;
+          margin: 18px 0;
+          padding: 16px;
+          background: #F8FAFC;
+          border: 1px solid #CBD5E1;
+          border-radius: 8px;
+        }
+        .qr-wrapper img {
+          width: 200px;
+          height: 200px;
+          display: inline-block;
+          object-fit: contain;
+          border: 1px solid #CBD5E1;
+          background: #FFFFFF;
+          padding: 4px;
+          border-radius: 6px;
+        }
+        .ref-no {
+          font-family: monospace;
+          font-size: 18px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          color: #0F172A;
+          margin-top: 10px;
+        }
+        .url {
+          font-size: 11px;
+          color: #2563EB;
+          word-break: break-all;
+          margin-top: 4px;
+          font-family: monospace;
+        }
+        .meta-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 14px;
+          font-size: 12px;
+        }
+        .meta-table td {
+          padding: 6px 4px;
+          border-bottom: 1px solid #E2E8F0;
+        }
+        .meta-table td.label {
+          font-weight: 700;
+          color: #64748B;
+          width: 40%;
+          text-transform: uppercase;
+          font-size: 10px;
+        }
+        .meta-table td.val {
+          font-weight: 600;
+          color: #0F172A;
+        }
+        .notice {
+          margin-top: 16px;
+          padding-top: 12px;
+          border-top: 1px solid #E2E8F0;
+          font-size: 10px;
+          color: #64748B;
+          line-height: 1.5;
+          text-align: center;
+        }
+        .footer-sig {
+          margin-top: 24px;
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          font-weight: 600;
+          color: #334155;
+        }
+        @media print {
+          body { padding: 0; background: white; }
+          .pass-card { border: 2px solid #000; box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="pass-card">
+        <div class="header">
+          <div class="govt">Government of Gujarat & India • Law Enforcement Operations Desk</div>
+          <div class="title">DURGA CASE QR PASS</div>
+          <div class="badge">PHYSICAL INCIDENT FILE ATTACHMENT</div>
+        </div>
+
+        <div class="qr-wrapper">
+          <img src="${qrSrc}" alt="Case QR Code" />
+          <div class="ref-no">${c.complaint_ref_no}</div>
+          <div class="url">${verificationUrl}</div>
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="label">Incident Category</td>
+            <td class="val">${formatCategory(c.category_id)}</td>
+          </tr>
+          <tr>
+            <td class="label">Incident Date & Time</td>
+            <td class="val">${c.incident_date || 'N/A'} • ${c.incident_time || 'N/A'}</td>
+          </tr>
+          <tr>
+            <td class="label">Incident Location</td>
+            <td class="val">${c.incident_location || 'Gujarat, India'}</td>
+          </tr>
+          <tr>
+            <td class="label">Assigned Officer</td>
+            <td class="val">${c.assigned_officer_name || c.assigned_officer_id || 'Investigating Officer Desk'}</td>
+          </tr>
+          <tr>
+            <td class="label">Current Status</td>
+            <td class="val">${formatStatus(c.current_status)}</td>
+          </tr>
+        </table>
+
+        <div class="notice">
+          📌 <strong>Physical File Instructions:</strong> Affix this official QR Pass to the physical incident folder.
+          Authorized field officers can scan using the DURGA Field App to instantly view verified case timeline,
+          cryptographic evidence records, and update investigation logs in real time.
+        </div>
+
+        <div class="footer-sig">
+          <div>Printed: ${new Date().toLocaleString()}</div>
+          <div>Authorized Sign / Seal: ____________________</div>
+        </div>
+      </div>
+      <script>
+        window.onload = function() {
+          setTimeout(function() {
+            window.print();
+          }, 350);
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank', 'width=680,height=750');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(docketHtml);
+    printWindow.document.close();
+  } else {
+    // Popup blocker fallback: hidden iframe
+    let iframe = document.getElementById('qr-print-frame');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'qr-print-frame';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(docketHtml);
+    doc.close();
+  }
 }
 
 // =========================================================

@@ -724,6 +724,11 @@ fun DurgaApp(
                         onRecordAuditAction = { caseId, action, reason ->
                             viewModel.recordAuthorityAction(caseId, action, reason)
                         },
+                        onViewCaseRecord = { caseId ->
+                            viewModel.selectCase(caseId)
+                            viewModel.setVerifiedScannedRecord(null)
+                            navController.navigate(DurgaRoutes.CASE_RECORD)
+                        },
                         onNavigateToWebPortals = { navController.navigate(DurgaRoutes.WEB_PORTALS) },
                         onBack = { navController.popBackStack() },
                         onLanguageChange = { viewModel.setLanguage(it) },
