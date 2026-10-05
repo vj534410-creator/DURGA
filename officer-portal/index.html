@@ -91,6 +91,17 @@
                 </div>
               </div>
               <div class="map-header-actions">
+                <!-- Export Format Selector & Capture Map Button -->
+                <div class="header-export-format-wrapper">
+                  <select id="header-export-format-select" class="header-format-select" onchange="selectExportFormat(this.value)" title="Export format (PNG, JPEG, PDF)">
+                    <option value="PNG" selected>PNG</option>
+                    <option value="JPEG">JPEG</option>
+                    <option value="PDF">PDF</option>
+                  </select>
+                  <button id="btn-capture-map" class="btn btn-outline btn-xs btn-capture-map" onclick="exportMapCurrentFormat(event)" title="Export high-resolution map in selected format">
+                    <span id="btn-capture-icon">📸</span> <span id="btn-capture-text">Export Map</span>
+                  </button>
+                </div>
                 <!-- Toggle between 'Satellite' and 'Street View' base layers -->
                 <button id="btn-toggle-map-layer" class="btn btn-outline btn-xs btn-layer-toggle" onclick="toggleMapBaseLayer()" title="Toggle between Satellite and Street View base layers">
                   <span id="map-layer-icon">🛰️</span> <span id="map-layer-text">Switch to Satellite</span>
@@ -105,7 +116,7 @@
             </div>
 
             <div class="static-map-wrapper">
-              <div class="static-map-viewport" id="static-map-viewport">
+              <div class="static-map-viewport" id="static-map-viewport" onmousedown="onMapMouseDown(event)" ontouchstart="onMapTouchStart(event)">
                 <!-- Dynamically generated static map render target -->
                 <div class="static-map-render-target" id="static-map-render-target"></div>
 
@@ -125,11 +136,141 @@
                   <div class="compass-bearing-readout" id="compass-bearing-readout">0° N</div>
                 </div>
 
+                <!-- Live Panning Coordinates HUD Overlay -->
+                <div class="map-pan-hud" id="map-pan-hud">
+                  <span class="pan-hud-icon">✋</span>
+                  <span id="map-pan-hud-text">Drag map to pan viewport</span>
+                </div>
+
+                <!-- Floating Capture Map Action Group with Format Dropdown inside static-map-viewport -->
+                <div class="map-viewport-capture-group" id="map-viewport-capture-group">
+                  <button id="btn-viewport-capture-map" class="btn-viewport-capture-map" onclick="exportMapCurrentFormat(event)" title="Export incident map view in selected format">
+                    <span class="btn-capture-camera-icon">📸</span>
+                    <span class="btn-capture-label">Capture Map</span>
+                    <span class="active-format-tag" id="active-format-tag">PNG</span>
+                  </button>
+                  <button id="btn-capture-dropdown-toggle" class="btn-capture-dropdown-toggle" onclick="toggleCaptureFormatMenu(event)" title="Select export format (PNG, JPEG, PDF)" aria-haspopup="true" aria-expanded="false">
+                    <span class="dropdown-caret">▼</span>
+                  </button>
+                  <!-- Format Dropdown Menu -->
+                  <div class="map-format-dropdown-menu" id="map-format-dropdown-menu" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="format-menu-header">SELECT EXPORT FORMAT</div>
+                    <div class="format-menu-item active" id="format-opt-png" onclick="selectExportFormat('PNG', event)">
+                      <span class="fmt-icon">🖼️</span>
+                      <div class="fmt-info">
+                        <span class="fmt-title">PNG Image</span>
+                        <span class="fmt-desc">High-Res Lossless (.png)</span>
+                      </div>
+                      <span class="fmt-check" id="fmt-check-png">✓</span>
+                    </div>
+                    <div class="format-menu-item" id="format-opt-jpeg" onclick="selectExportFormat('JPEG', event)">
+                      <span class="fmt-icon">📷</span>
+                      <div class="fmt-info">
+                        <span class="fmt-title">JPEG Image</span>
+                        <span class="fmt-desc">Standard Compressed Photo (.jpg)</span>
+                      </div>
+                      <span class="fmt-check" id="fmt-check-jpeg"></span>
+                    </div>
+                    <div class="format-menu-item" id="format-opt-pdf" onclick="selectExportFormat('PDF', event)">
+                      <span class="fmt-icon">📄</span>
+                      <div class="fmt-info">
+                        <span class="fmt-title">PDF Document</span>
+                        <span class="fmt-desc">Statutory Police Docket File (.pdf)</span>
+                      </div>
+                      <span class="fmt-check" id="fmt-check-pdf"></span>
+                    </div>
+                  </div>
+                  <!-- Native HTML select dropdown for programmatic/form testing -->
+                  <select id="map-export-format-select" class="map-export-format-native" onchange="selectExportFormat(this.value, event)" title="Export format dropdown">
+                    <option value="PNG" selected>PNG</option>
+                    <option value="JPEG">JPEG</option>
+                    <option value="PDF">PDF</option>
+                  </select>
+                </div>
+
+                <!-- Re-center button (shows when viewport is panned) -->
+                <button id="btn-recenter-map" class="btn-recenter-map" onclick="resetMapPan(event)" style="display: none;" title="Re-center map on incident pin">
+                  🎯 Re-center Incident
+                </button>
+
+                <!-- Floating Legend Toggle Button in Corner of static-map-viewport -->
+                <button id="btn-toggle-legend" class="btn-legend-toggle" onclick="toggleIncidentLegend(event)" title="Toggle Incident Types & Pin Markers Legend" aria-label="Incident Types Legend" aria-expanded="false">
+                  <span class="legend-btn-icon">📋</span>
+                  <span class="legend-btn-label">Legend</span>
+                </button>
+
+                <!-- Floating 'Incident Types' Legend Card describing color-coded pins -->
+                <div id="map-incident-legend" class="map-incident-legend" style="display: none;" onclick="event.stopPropagation()">
+                  <div class="legend-header">
+                    <div class="legend-title-row">
+                      <span class="legend-header-icon">📑</span>
+                      <span class="legend-title">Incident Types</span>
+                    </div>
+                    <button class="legend-close-btn" onclick="toggleIncidentLegend(event)" title="Close Legend">&times;</button>
+                  </div>
+                  <div class="legend-subtitle">Color-coded pin markers & threat urgency:</div>
+                  <div class="legend-items-list">
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-emergency"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">EMERGENCY / SOS ALERT</span>
+                        <span class="legend-item-desc">Critical active threat, distress beacon, immediate patrol intercept</span>
+                      </div>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-urgent"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">URGENT INCIDENT</span>
+                        <span class="legend-item-desc">Domestic violence, stalking in transit, prioritized field dispatch</span>
+                      </div>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-normal"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">STANDARD DOCKET</span>
+                        <span class="legend-item-desc">Cyber fraud, property theft, ongoing inquiry under investigation</span>
+                      </div>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-resolved"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">RESOLVED / CONTAINED</span>
+                        <span class="legend-item-desc">Perimeter secured, safe shelter provided, suspect intercepted</span>
+                      </div>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-landmark"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">NEARBY LANDMARKS</span>
+                        <span class="legend-item-desc">Police checkposts, hospitals, trauma centers, women safe shelters</span>
+                      </div>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-snapshot"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">TIMELINE WAYPOINT</span>
+                        <span class="legend-item-desc">Historical tracking snapshots showing incident movement route</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Zoom control buttons (+ and -) overlaid on static-map-viewport -->
                 <div class="map-zoom-controls" id="map-zoom-controls">
                   <button class="map-zoom-btn" id="map-zoom-in" onclick="zoomInMap(event)" title="Zoom in (+)" aria-label="Zoom in">+</button>
                   <span class="map-zoom-indicator" id="map-zoom-indicator">15x</span>
                   <button class="map-zoom-btn" id="map-zoom-out" onclick="zoomOutMap(event)" title="Zoom out (-)" aria-label="Zoom out">−</button>
+                  <!-- Toggle button within zoom controls to overlay 'Nearby Landmarks' labels -->
+                  <button class="map-zoom-btn btn-landmarks-toggle" id="btn-toggle-landmarks" onclick="toggleNearbyLandmarks(event)" title="Toggle Nearby Landmarks overlay for situational awareness" aria-label="Toggle Nearby Landmarks">
+                    <span id="landmark-toggle-icon">🏛️</span>
+                  </button>
+                  <button class="map-zoom-btn btn-capture-quick" onclick="exportMapCurrentFormat(event)" title="Quick Capture Map" aria-label="Quick Capture Map">📸</button>
+                </div>
+
+                <!-- Nearby Landmarks Active Status HUD Pill -->
+                <div class="landmarks-hud-pill" id="landmarks-hud-pill" style="display: none;">
+                  <span class="landmark-hud-icon">🏛️</span>
+                  <span id="landmarks-hud-text">LANDMARKS ON (7 ACTIVE)</span>
                 </div>
 
                 <!-- Interactive Popup Tooltip displaying Case ID when pin is clicked -->
@@ -151,6 +292,46 @@
                 <div class="map-layer-indicator-pill" id="map-layer-indicator-pill">
                   <span class="layer-pill-dot" id="layer-pill-dot">●</span>
                   <span class="layer-pill-label" id="layer-pill-label">STREET VIEW</span>
+                </div>
+
+                <!-- Time-Scrubber Slider at the bottom of the map viewport -->
+                <div class="map-time-scrubber-bar" id="map-time-scrubber-bar" onclick="event.stopPropagation()">
+                  <div class="scrubber-controls-row">
+                    <!-- Rewind / Play / Fast-Forward controls -->
+                    <div class="scrubber-btn-group">
+                      <button id="btn-scrubber-rewind" class="scrubber-nav-btn" onclick="scrubberRewind(event)" title="Rewind to start (Snapshot 1: Initial Alert)" aria-label="Rewind">⏮</button>
+                      <button id="btn-scrubber-prev" class="scrubber-nav-btn" onclick="scrubberPrev(event)" title="Previous status snapshot" aria-label="Step Back">◀</button>
+                      <button id="btn-scrubber-play" class="scrubber-nav-btn btn-play" onclick="scrubberTogglePlay(event)" title="Play / Pause incident movement timeline" aria-label="Play Timeline">▶</button>
+                      <button id="btn-scrubber-next" class="scrubber-nav-btn" onclick="scrubberNext(event)" title="Next status snapshot" aria-label="Step Forward">▶</button>
+                      <button id="btn-scrubber-ffwd" class="scrubber-nav-btn" onclick="scrubberFastForward(event)" title="Fast-Forward to latest live incident status" aria-label="Fast Forward">⏭</button>
+                    </div>
+
+                    <!-- Range Slider -->
+                    <div class="scrubber-slider-container">
+                      <input type="range" id="map-time-scrubber" class="map-time-scrubber-slider" min="0" max="4" value="4" step="1" oninput="onTimeScrubberInput(this.value, event)" onchange="onTimeScrubberChange(this.value, event)" aria-label="Incident movement timeline scrubber">
+                      <div class="scrubber-ticks" id="scrubber-ticks">
+                        <span class="scrubber-tick" id="scrubber-tick-0" onclick="onTimeScrubberChange(0, event)">T-45m</span>
+                        <span class="scrubber-tick" id="scrubber-tick-1" onclick="onTimeScrubberChange(1, event)">T-30m</span>
+                        <span class="scrubber-tick" id="scrubber-tick-2" onclick="onTimeScrubberChange(2, event)">T-15m</span>
+                        <span class="scrubber-tick" id="scrubber-tick-3" onclick="onTimeScrubberChange(3, event)">T-5m</span>
+                        <span class="scrubber-tick active" id="scrubber-tick-4" onclick="onTimeScrubberChange(4, event)">LIVE</span>
+                      </div>
+                    </div>
+
+                    <!-- Live status pill -->
+                    <div class="scrubber-status-chip" id="scrubber-status-chip">
+                      <span class="scrubber-status-indicator" id="scrubber-status-dot">●</span>
+                      <span class="scrubber-status-text" id="scrubber-status-text">LIVE FIX (19:45)</span>
+                    </div>
+                  </div>
+
+                  <!-- Details drawer / snapshot caption -->
+                  <div class="scrubber-details-drawer" id="scrubber-details-drawer">
+                    <span class="drawer-step-badge" id="scrubber-step-badge">SNAPSHOT 5/5</span>
+                    <span class="drawer-time" id="scrubber-detail-time">19:45</span>
+                    <span class="drawer-sep">•</span>
+                    <span class="drawer-desc" id="scrubber-detail-desc">Present: Active tactical investigation; coordinates secured</span>
+                  </div>
                 </div>
               </div>
               
