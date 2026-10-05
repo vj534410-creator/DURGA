@@ -53,6 +53,9 @@
         </div>
 
         <div class="dossier-content" id="dossier-content" style="display:none;">
+          <!-- Emergency / Urgent Alert Banner in Dossier -->
+          <div id="dossier-priority-alert" class="dossier-priority-alert" style="display:none;"></div>
+
           <div class="dossier-header">
             <div>
               <span class="tag-category" id="dossier-category">CATEGORY</span>
@@ -72,6 +75,95 @@
             <div class="detail-box">
               <label>Jurisdiction Location</label>
               <div class="val" id="dossier-location">Gandhinagar, Gujarat</div>
+            </div>
+          </div>
+
+          <!-- Static Map Preview Component for Review Pane -->
+          <div class="section-card map-preview-card" id="incident-map-card">
+            <div class="map-card-header">
+              <div class="map-title-row">
+                <span class="map-header-icon">🗺️</span>
+                <div>
+                  <h4 class="map-section-title">Incident Geolocation & Map Preview</h4>
+                  <div class="map-coords-badge" id="map-coordinates-display">
+                    <span class="coord-label">GPS Fix:</span> <span id="map-coords-val">23.2156° N, 72.6369° E</span>
+                  </div>
+                </div>
+              </div>
+              <div class="map-header-actions">
+                <!-- Toggle between 'Satellite' and 'Street View' base layers -->
+                <button id="btn-toggle-map-layer" class="btn btn-outline btn-xs btn-layer-toggle" onclick="toggleMapBaseLayer()" title="Toggle between Satellite and Street View base layers">
+                  <span id="map-layer-icon">🛰️</span> <span id="map-layer-text">Switch to Satellite</span>
+                </button>
+                <button class="btn btn-outline btn-xs" onclick="copyCaseCoordinates()" title="Copy GPS Coordinates to Clipboard">
+                  📋 Copy GPS
+                </button>
+                <a id="map-external-link" href="https://maps.google.com/?q=23.2156,72.6369" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs" title="Open location in external maps">
+                  📍 Open in Maps ↗
+                </a>
+              </div>
+            </div>
+
+            <div class="static-map-wrapper">
+              <div class="static-map-viewport" id="static-map-viewport">
+                <!-- Dynamically generated static map render target -->
+                <div class="static-map-render-target" id="static-map-render-target"></div>
+
+                <!-- Small dynamic rotating compass widget in corner of static-map-viewport -->
+                <div class="map-compass-widget" id="map-compass-widget" onclick="rotateMapHeading()" title="Click to rotate map heading / orientation">
+                  <div class="compass-dial" id="compass-dial">
+                    <div class="compass-needle">
+                      <div class="needle-pointer needle-n"></div>
+                      <div class="needle-pointer needle-s"></div>
+                      <div class="needle-pivot"></div>
+                    </div>
+                    <span class="compass-marker marker-n">N</span>
+                    <span class="compass-marker marker-e">E</span>
+                    <span class="compass-marker marker-s">S</span>
+                    <span class="compass-marker marker-w">W</span>
+                  </div>
+                  <div class="compass-bearing-readout" id="compass-bearing-readout">0° N</div>
+                </div>
+
+                <!-- Zoom control buttons (+ and -) overlaid on static-map-viewport -->
+                <div class="map-zoom-controls" id="map-zoom-controls">
+                  <button class="map-zoom-btn" id="map-zoom-in" onclick="zoomInMap(event)" title="Zoom in (+)" aria-label="Zoom in">+</button>
+                  <span class="map-zoom-indicator" id="map-zoom-indicator">15x</span>
+                  <button class="map-zoom-btn" id="map-zoom-out" onclick="zoomOutMap(event)" title="Zoom out (-)" aria-label="Zoom out">−</button>
+                </div>
+
+                <!-- Interactive Popup Tooltip displaying Case ID when pin is clicked -->
+                <div id="incident-pin-tooltip" class="incident-pin-tooltip" style="display: none;" onclick="event.stopPropagation()">
+                  <div class="tooltip-header">
+                    <span class="tooltip-badge" id="tooltip-case-priority">EMERGENCY</span>
+                    <button class="tooltip-close-btn" onclick="closeIncidentPinTooltip(event)" title="Close">&times;</button>
+                  </div>
+                  <div class="tooltip-body">
+                    <div class="tooltip-label">INCIDENT CASE ID</div>
+                    <div class="tooltip-case-id" id="tooltip-case-id">DURGA-2026-08194</div>
+                    <div class="tooltip-meta" id="tooltip-case-title">Critical Incident Docket</div>
+                    <div class="tooltip-coords" id="tooltip-case-coords">📍 23.2156° N, 72.6369° E</div>
+                  </div>
+                  <div class="tooltip-arrow"></div>
+                </div>
+
+                <!-- Overlaid Base Layer Badge -->
+                <div class="map-layer-indicator-pill" id="map-layer-indicator-pill">
+                  <span class="layer-pill-dot" id="layer-pill-dot">●</span>
+                  <span class="layer-pill-label" id="layer-pill-label">STREET VIEW</span>
+                </div>
+              </div>
+              
+              <div class="map-footer-details">
+                <div class="map-loc-info">
+                  <span class="map-loc-pin">📍</span>
+                  <span class="map-loc-address" id="map-location-address">Gandhinagar, Gujarat</span>
+                </div>
+                <div class="map-meta-chips">
+                  <span class="map-chip chip-accuracy">🎯 High Accuracy GPS Fix</span>
+                  <span class="map-chip chip-station" id="map-station-chip">🚔 Jurisdiction: Gandhinagar Central PS</span>
+                </div>
+              </div>
             </div>
           </div>
 

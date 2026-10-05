@@ -360,6 +360,56 @@ class DatabaseStore {
     };
     this.complaints.set(complaint2.id, complaint2);
 
+    // Seed Complaint 3: Critical SOS Emergency
+    const complaint3Id = uuidv4();
+    const caseRef3 = 'DURGA-2026-08194';
+    const complaint3: ComplaintRecord = {
+      id: complaint3Id,
+      complaint_ref_no: caseRef3,
+      category_id: 'SOS_EMERGENCY',
+      title: 'CRITICAL: Physical Distress Alert & Stalking in Transit',
+      original_description: 'Citizen triggered live emergency SOS alert from bus terminal. Immediate officer patrol dispatch requested.',
+      structured_description: 'Active stalker pursuing victim near Gandhinagar Central Bus Terminal. Immediate field intervention required.',
+      original_language: 'en',
+      incident_date: '2026-09-25',
+      incident_time: '19:45',
+      incident_location: 'Central Bus Terminal, Sector 11, Gandhinagar',
+      latitude: 23.2212,
+      longitude: 72.6481,
+      is_witness_report: false,
+      current_status: 'UNDER_INVESTIGATION',
+      priority: 'EMERGENCY',
+      assigned_officer_id: officerId,
+      assigned_officer_name: 'Inspector R. Sharma (POL-GJ-4029)',
+      evidence_count: 3,
+      complainant: {
+        name: 'Protected Citizen',
+        age: '22',
+        gender: 'Female',
+        state: 'Gujarat',
+        district: 'Gandhinagar',
+        mobile: '+919822334455'
+      },
+      shared_items_summary: 'Live GPS Coordinates, Audio Recording, Incident Notes',
+      secure_token: 'sec-tok-08194-durga',
+      locked: true,
+      lock_timestamp: new Date().toISOString(),
+      created_at: new Date(Date.now() - 1800000).toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    this.complaints.set(complaint3.id, complaint3);
+
+    this.timeline.push({
+      id: uuidv4(),
+      case_id: complaint3.id,
+      event_type: 'CASE_CREATED',
+      title: 'Emergency SOS Broadcast Received',
+      description: 'Critical SOS distress alert received with live GPS coordinates.',
+      actor_name: 'DURGA SOS Trigger',
+      actor_role: 'SYSTEM',
+      timestamp: new Date(Date.now() - 1800000).toISOString()
+    });
+
     this.timeline.push({
       id: uuidv4(),
       case_id: complaint2.id,
