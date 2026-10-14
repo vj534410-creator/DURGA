@@ -35,7 +35,10 @@ import com.example.durga.model.Sos112State
 import com.example.durga.model.SosTestResult
 import com.example.durga.model.SosTestCheckItem
 import com.example.durga.model.TrustedContactEntity
-import com.example.durga.repository.DurgaRepository
+import com.example.durga.model.ChatMessage
+import com.example.durga.model.ChatPersona
+import com.example.durga.model.GroundedPlace
+import com.example.durga.network.GeminiChatService
 import com.example.ui.theme.DurgaThemeMode
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
@@ -172,6 +175,119 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setVerifiedScannedRecord(record: VerifiedCaseRecord?) {
         _verifiedScannedRecord.value = record
+    }
+
+    // --- Gemini Multi-Turn Chatbot with Google Maps Grounding State ---
+    private val _activePersona = MutableStateFlow(ChatPersona.DURGA_SAFETY)
+    val activePersona: StateFlow<ChatPersona> = _activePersona.asStateFlow()
+
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
+        listOf(
+            ChatMessage(
+                role = "model",
+                text = ChatPersona.DURGA_SAFETY.welcomeMessage,
+                isMapsGrounded = true
+            )
+        )
+    )
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
+
+    private val _isChatLoading = MutableStateFlow(false)
+    val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
+
+    private val _chatErrorMessage = MutableStateFlow<String?>(null)
+    val chatErrorMessage: StateFlow<String?> = _chatErrorMessage.asStateFlow()
+
+    private val _isMapsGroundingEnabled = MutableStateFlow(true)
+    val isMapsGroundingEnabled: StateFlow<Boolean> = _isMapsGroundingEnabled.asStateFlow()
+
+    fun setChatPersona(persona: ChatPersona) {
+        _activePersona.value = persona
+        if (_chatMessages.value.size <= 1) {
+            _chatMessages.value = listOf(
+                ChatMessage(
+                    role = "model",
+                    text = persona.welcomeMessage,
+                    isMapsGrounded = _isMapsGroundingEnabled.value
+                )
+            )
+        }
+    }
+
+    fun setCustomPersona(name: String, instruction: String) {
+        val custom = ChatPersona(
+            id = "custom_${System.currentTimeMillis()}",
+            name = name.ifBlank { "Custom Safety Guide" },
+            icon = "⚙️",
+            shortDesc = "Custom role with personalized system instructions",
+            systemInstruction = instruction.ifBlank { ChatPersona.DURGA_SAFETY.systemInstruction },
+            welcomeMessage = "Custom persona active: ${name.ifBlank { "Specialized Safety Guide" }}. How can I assist you today?"
+        )
+        setChatPersona(custom)
+    }
+
+    fun toggleMapsGrounding(enabled: Boolean) {
+        _isMapsGroundingEnabled.value = enabled
+    }
+
+    fun clearChat() {
+        _chatErrorMessage.value = null
+        _chatMessages.value = listOf(
+            ChatMessage(
+                role = "model",
+                text = _activePersona.value.welcomeMessage,
+                isMapsGrounded = _isMapsGroundingEnabled.value
+            )
+        )
+    }
+
+    fun sendChatMessage(text: String, userLocationHint: String? = "Ahmedabad, Gujarat") {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+
+        val userMessage = ChatMessage(role = "user", text = trimmed)
+        val updatedList = _chatMessages.value + userMessage
+        _chatMessages.value = updatedList
+        _isChatLoading.value = true
+        _chatErrorMessage.value = null
+
+        viewModelScope.launch {
+            val result = GeminiChatService.generateChatResponse(
+                conversationHistory = updatedList,
+                activePersona = _activePersona.value,
+                userLocationHint = userLocationHint,
+                enableMapsGrounding = _isMapsGroundingEnabled.value
+            )
+            result.onSuccess { modelMsg ->
+                _chatMessages.value = _chatMessages.value + modelMsg
+                _isChatLoading.value = false
+            }.onFailure { err ->
+                _chatErrorMessage.value = err.message ?: "Failed to generate AI response. Please try again."
+                _isChatLoading.value = false
+            }
+        }
+    }
+
+    fun retryLastChatMessage(userLocationHint: String? = "Ahmedabad, Gujarat") {
+        val lastUserMsg = _chatMessages.value.lastOrNull { it.role == "user" } ?: return
+        _isChatLoading.value = true
+        _chatErrorMessage.value = null
+
+        viewModelScope.launch {
+            val result = GeminiChatService.generateChatResponse(
+                conversationHistory = _chatMessages.value,
+                activePersona = _activePersona.value,
+                userLocationHint = userLocationHint,
+                enableMapsGrounding = _isMapsGroundingEnabled.value
+            )
+            result.onSuccess { modelMsg ->
+                _chatMessages.value = _chatMessages.value + modelMsg
+                _isChatLoading.value = false
+            }.onFailure { err ->
+                _chatErrorMessage.value = err.message ?: "Failed to generate AI response. Please try again."
+                _isChatLoading.value = false
+            }
+        }
     }
 
     fun verifyScannedCaseQr(tokenOrCode: String, onVerified: (VerifiedCaseRecord) -> Unit) {

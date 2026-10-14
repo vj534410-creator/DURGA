@@ -53,7 +53,7 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WarningAmber
@@ -162,6 +162,7 @@ fun HomeScreen(
     onNavigateToEmergencyContacts: () -> Unit = {},
     onNavigateToCaptureEvidence: (initialMode: String) -> Unit = {},
     onNavigateToScanner: () -> Unit = {},
+    onNavigateToGeminiChat: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -944,6 +945,133 @@ fun HomeScreen(
                                 color = colors.primary
                             )
                         )
+                    }
+                }
+            }
+
+            // ==============================================================
+            // 3C. GEMINI SAFETY CHATBOT (Google Maps Grounded • gemini-3.8-flash)
+            // ==============================================================
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF0284C7).copy(alpha = 0.6f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToGeminiChat() }
+                        .testTag("home_gemini_chatbot_banner")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(Color(0xFFE0F2FE), RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "🤖", fontSize = 22.sp)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "DURGA GEMINI CHATBOT",
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = FontWeight.Black,
+                                                color = colors.textPrimary,
+                                                fontSize = 13.5.sp
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFFE0F2FE), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "gemini-3.8-flash",
+                                                color = Color(0xFF0369A1),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "Multi-turn AI Assistant • Google Maps Grounded",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary,
+                                            fontSize = 11.5.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFF0FDF4), RoundedCornerShape(8.dp))
+                                    .border(0.8.dp, Color(0xFF86EFAC), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "LIVE",
+                                    color = Color(0xFF166534),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Ask safety questions, legal rights, or locate nearest police stations, 24/7 hospitals, and women shelters using real Google Maps data.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(colors.primaryContainer.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("🛡️ Safety Guide", fontSize = 10.sp, color = colors.primary, fontWeight = FontWeight.SemiBold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFFEF3C7), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("🗺️ Maps Grounding", fontSize = 10.sp, color = Color(0xFF92400E), fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+
+                            Text(
+                                text = "Start Chat →",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0284C7),
+                                    fontSize = 12.5.sp
+                                )
+                            )
+                        }
                     }
                 }
             }

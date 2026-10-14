@@ -27,6 +27,17 @@
       </div>
     </header>
 
+    <!-- Top Security & Access Alert Banner (for expired shared links or notifications) -->
+    <div id="portal-security-alert" class="portal-security-alert no-print" style="display: none;" role="alert">
+      <div class="security-alert-content">
+        <span class="security-alert-icon">⚠️</span>
+        <div class="security-alert-message" id="portal-security-alert-msg">
+          <strong>Secure Access Notice:</strong> The shared print-docket link has expired.
+        </div>
+        <button type="button" class="security-alert-close" onclick="dismissSecurityAlert()" title="Dismiss Alert">&times;</button>
+      </div>
+    </div>
+
     <!-- Main Container -->
     <div class="main-body">
       <!-- Left: Assigned Cases List -->
@@ -152,6 +163,11 @@
                   <button id="btn-capture-dropdown-toggle" class="btn-capture-dropdown-toggle" onclick="toggleCaptureFormatMenu(event)" title="Select export format (PNG, JPEG, PDF)" aria-haspopup="true" aria-expanded="false">
                     <span class="dropdown-caret">▼</span>
                   </button>
+                  <!-- Dedicated 'Print Map View' Button in Capture Group -->
+                  <button id="btn-print-map-view" class="btn-print-map-view" onclick="openPrintMapModal(event)" title="Print Map View (opens dedicated printer-friendly dossier modal)" aria-label="Print Map View">
+                    <span class="btn-print-icon">🖨️</span>
+                    <span class="btn-print-label">Print Map View</span>
+                  </button>
                   <!-- Format Dropdown Menu -->
                   <div class="map-format-dropdown-menu" id="map-format-dropdown-menu" style="display: none;" onclick="event.stopPropagation()">
                     <div class="format-menu-header">SELECT EXPORT FORMAT</div>
@@ -179,6 +195,14 @@
                       </div>
                       <span class="fmt-check" id="fmt-check-pdf"></span>
                     </div>
+                    <div class="format-menu-item" id="format-opt-print" onclick="openPrintMapModal(event)">
+                      <span class="fmt-icon">🖨️</span>
+                      <div class="fmt-info">
+                        <span class="fmt-title">Print Map View</span>
+                        <span class="fmt-desc">Printer-Friendly Modal Docket</span>
+                      </div>
+                      <span class="fmt-check" id="fmt-check-print"></span>
+                    </div>
                   </div>
                   <!-- Native HTML select dropdown for programmatic/form testing -->
                   <select id="map-export-format-select" class="map-export-format-native" onchange="selectExportFormat(this.value, event)" title="Export format dropdown">
@@ -197,6 +221,12 @@
                 <button id="btn-toggle-legend" class="btn-legend-toggle" onclick="toggleIncidentLegend(event)" title="Toggle Incident Types & Pin Markers Legend" aria-label="Incident Types Legend" aria-expanded="false">
                   <span class="legend-btn-icon">📋</span>
                   <span class="legend-btn-label">Legend</span>
+                </button>
+
+                <!-- Floating 'Center on My Location' Button inside #static-map-viewport -->
+                <button id="btn-center-my-location" class="btn-center-my-location" onclick="centerOnOfficerLocation(event)" title="Center on My Location (Requests Geolocation API and pans map to live GPS coordinate)" aria-label="Center on My Location" data-action="center-my-location">
+                  <span class="btn-location-icon" id="btn-location-icon">📍</span>
+                  <span class="btn-location-label" id="btn-location-label">Center on My Location</span>
                 </button>
 
                 <!-- Floating 'Incident Types' Legend Card describing color-coded pins -->
@@ -250,6 +280,13 @@
                       <div class="legend-item-info">
                         <span class="legend-item-title">TIMELINE WAYPOINT</span>
                         <span class="legend-item-desc">Historical tracking snapshots showing incident movement route</span>
+                      </div>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-pin-swatch swatch-officer"></span>
+                      <div class="legend-item-info">
+                        <span class="legend-item-title">OFFICER LIVE GPS</span>
+                        <span class="legend-item-desc">Live patrol unit coordinate acquired via Geolocation API</span>
                       </div>
                     </div>
                   </div>
@@ -452,6 +489,195 @@
         </div>
 
         <div id="scan-feedback-message" style="display: none; margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Printer-Friendly Map View Modal -->
+  <div id="print-map-modal" class="modal-backdrop print-map-modal-backdrop" style="display:none;" onclick="if(event.target===this) closePrintMapModal()">
+    <div class="modal-card print-modal-card">
+      <div class="modal-header print-modal-header no-print">
+        <div class="print-header-left">
+          <span class="print-header-badge">🖨️ PRINTER-FRIENDLY DOSSIER</span>
+          <h3 class="print-modal-heading">Incident Geolocation Map View</h3>
+        </div>
+        <div class="print-header-actions">
+          <button id="btn-copy-print-view-link" class="btn btn-outline btn-sm btn-copy-print-link" onclick="copyPrintViewLink(event)" title="Generate and copy a secure, short-lived link to share this print docket with authorized officers" data-action="copy-print-view-link" aria-label="Copy Print View Link">
+            <span class="btn-copy-icon" id="btn-copy-icon">🔗</span>
+            <span class="btn-copy-label" id="btn-copy-label">Copy Print View Link</span>
+          </button>
+          <button id="btn-modal-trigger-print" class="btn btn-primary btn-sm btn-print-execute" onclick="triggerMapPrint()">
+            <span>🖨️</span> Print Map View
+          </button>
+          <button class="btn btn-outline btn-sm btn-close-modal" onclick="closePrintMapModal()">&times; Close</button>
+        </div>
+      </div>
+
+      <div class="modal-body print-modal-body">
+        <!-- Live Real-Time Banner: Generated & Copied Secure Share Link Feedback -->
+        <div id="print-share-status-banner" class="print-share-status-banner no-print" style="display: none;" role="status">
+          <div class="share-status-header">
+            <div class="share-status-left">
+              <span class="share-status-icon">🛡️</span>
+              <div>
+                <strong class="share-status-title">Secure Print Docket Link Generated &amp; Copied!</strong>
+                <div class="share-status-subtitle">Short-lived preview URL created with cryptographic officer authentication token.</div>
+              </div>
+            </div>
+            <button type="button" class="btn-dismiss-share-banner" onclick="dismissShareBanner()" title="Dismiss Banner">&times;</button>
+          </div>
+          <div class="share-status-body">
+            <div class="share-status-input-row">
+              <input type="text" id="share-status-url-input" class="share-status-url-input" readonly onclick="this.select()" title="Click to select full shareable link" />
+              <button type="button" class="btn btn-sm btn-secondary btn-recopy-link" onclick="recopySharedLink()">
+                <span>📋</span> Copy Again
+              </button>
+            </div>
+            <div class="share-status-meta">
+              <span class="share-meta-pill share-pill-expiry">⏱️ <strong id="share-expiry-countdown">Valid for 30m</strong></span>
+              <span class="share-meta-pill share-pill-auth">🔒 Authorized Officers Only</span>
+              <span class="share-meta-pill share-pill-token" id="share-token-preview">Token: VERIFIED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Authorized Officer Active Session Banner (visible when opened via shared link) -->
+        <div id="shared-officer-auth-banner" class="shared-officer-auth-banner no-print" style="display: none;" role="status">
+          <div class="auth-banner-content">
+            <span class="auth-badge-icon">🔒</span>
+            <div class="auth-banner-info">
+              <strong class="auth-badge-title">OFFICER SECURE DOCKET PREVIEW SESSION</strong>
+              <div class="auth-badge-sub" id="shared-auth-status-text">
+                Authenticated via short-lived dispatch token • <span id="shared-session-countdown">Expires in 29m 59s</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline btn-dismiss-auth" onclick="dismissAuthBanner()">Dismiss</button>
+        </div>
+
+        <!-- Printer-Friendly Physical Docket Sheet -->
+        <div class="print-map-sheet" id="print-map-sheet">
+          <div class="docket-print-header">
+            <div class="docket-emblem-row">
+              <div class="docket-title-block">
+                <div class="docket-gov-badge">GOVERNMENT OF GUJARAT • POLICE DEPARTMENT</div>
+                <h2 class="docket-doc-title">CRIME INVESTIGATION &amp; TACTICAL GEOLOCATION MAP DOCKET</h2>
+                <div class="docket-subhead">Official Physical Evidence Dossier — Spatial Coordinates Verification</div>
+              </div>
+              <div class="docket-priority-box" id="print-docket-priority-box">
+                <span class="priority-label" id="print-docket-priority">EMERGENCY</span>
+                <span class="priority-desc">OFFICIAL CLASSIFICATION</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="docket-metadata-grid">
+            <div class="docket-meta-item">
+              <span class="meta-field-label">CASE REFERENCE ID</span>
+              <strong class="meta-field-val" id="print-case-ref">DURGA-2026-08194</strong>
+            </div>
+            <div class="docket-meta-item">
+              <span class="meta-field-label">INCIDENT DATE &amp; TIME</span>
+              <strong class="meta-field-val" id="print-case-datetime">2026-09-25 • 19:45</strong>
+            </div>
+            <div class="docket-meta-item">
+              <span class="meta-field-label">INVESTIGATING OFFICER</span>
+              <strong class="meta-field-val" id="print-case-officer">Inspector R. Sharma (POL-GJ-4029)</strong>
+            </div>
+            <div class="docket-meta-item">
+              <span class="meta-field-label">PRIMARY INCIDENT LOCATION</span>
+              <strong class="meta-field-val" id="print-case-location">Central Bus Terminal, Sector 11, Gandhinagar</strong>
+            </div>
+            <div class="docket-meta-item">
+              <span class="meta-field-label">GPS COORDINATE FIX (WGS-84)</span>
+              <strong class="meta-field-val" id="print-case-coords">📍 23.2212° N, 72.6481° E</strong>
+            </div>
+            <div class="docket-meta-item">
+              <span class="meta-field-label">TACTICAL VIEWPORT STATUS</span>
+              <strong class="meta-field-val" id="print-case-viewstatus">Satellite Recon • Zoom 15x • Heading 0° N</strong>
+            </div>
+          </div>
+
+          <!-- Dedicated Container Displaying ONLY the Current Map Viewport -->
+          <div class="print-viewport-frame" id="print-viewport-frame">
+            <div class="print-viewport-label-tag">OFFICIAL INCIDENT MAP VIEWPORT (CURRENT ZOOM, ORIENTATION &amp; STATUS FIX)</div>
+            <div class="print-map-viewport-target" id="print-map-viewport-target">
+              <!-- Rendered static map SVG container -->
+              <div class="print-map-svg-canvas" id="print-map-svg-canvas">
+                <!-- Rendered static map SVG cloned here -->
+              </div>
+
+              <!-- 'Show Legend' Toggle within #print-map-viewport-target container -->
+              <div class="print-legend-toggle-bar no-print" id="print-legend-toggle-bar">
+                <label class="print-legend-toggle-label" for="print-legend-toggle-checkbox" title="Toggle incident pin color key on printed output">
+                  <input type="checkbox" id="print-legend-toggle-checkbox" class="print-legend-toggle-checkbox" checked onchange="togglePrintLegend(this.checked)">
+                  <span class="print-legend-toggle-slider"></span>
+                  <span class="print-legend-toggle-text">Show Legend</span>
+                </label>
+                <button type="button" id="btn-print-legend-toggle" class="btn-print-legend-toggle active" onclick="togglePrintLegendClick(event)" aria-pressed="true" title="Toggle incident pin color key on printed output" data-action="toggle-print-legend">
+                  <span class="print-legend-btn-icon">📑</span>
+                  <span class="print-legend-btn-label">Show Legend</span>
+                </button>
+              </div>
+
+              <!-- Small key mapping pin colors to incident types specifically for the printed output -->
+              <div class="print-map-incident-key" id="print-map-incident-key" role="region" aria-label="Printed Incident Pin Color Key">
+                <div class="print-key-header">
+                  <span class="print-key-title">INCIDENT MAP KEY &amp; PIN CLASSIFICATIONS</span>
+                  <span class="print-key-badge">OFFICIAL REF</span>
+                </div>
+                <div class="print-key-grid">
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-emergency"></span>
+                    <span class="print-key-label">Emergency / SOS</span>
+                  </div>
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-urgent"></span>
+                    <span class="print-key-label">Urgent Priority</span>
+                  </div>
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-normal"></span>
+                    <span class="print-key-label">Standard Docket</span>
+                  </div>
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-resolved"></span>
+                    <span class="print-key-label">Resolved / Contained</span>
+                  </div>
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-landmark"></span>
+                    <span class="print-key-label">Checkpost / Landmark</span>
+                  </div>
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-snapshot"></span>
+                    <span class="print-key-label">Timeline Waypoint</span>
+                  </div>
+                  <div class="print-key-item">
+                    <span class="print-key-swatch swatch-officer"></span>
+                    <span class="print-key-label">Officer Live GPS</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Physical Sign-off & Verification Footer -->
+          <div class="docket-print-footer">
+            <div class="footer-legal-notice">
+              <div class="legal-badge">🔒 STATUTORY EVIDENCE INTEGRITY</div>
+              <p class="legal-text">
+                This document is a certified spatial rendering of the incident coordinates recorded in the DURGA Police Incident Management System. Valid for court deposition, physical FIR dossiers, and operational field briefings.
+              </p>
+              <div class="legal-hash" id="print-docket-hash">
+                SHA-256 GEOLOCATION VALIDATED • OFFICIAL POLICE RECORD
+              </div>
+            </div>
+            <div class="footer-signoff-box">
+              <div class="signoff-line"></div>
+              <div class="signoff-title">Investigating Officer Signature &amp; Seal</div>
+              <div class="signoff-officer" id="print-signoff-officer">Inspector R. Sharma (Badge: POL-GJ-4029)</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

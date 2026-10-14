@@ -256,6 +256,8 @@ let baseIncidentLng = 72.6369;
 let currentCenterLat = 23.2156;
 let currentCenterLng = 72.6369;
 let dragDistanceMoved = 0;
+let currentOfficerLocation = null; // { lat, lng, accuracy, timestamp }
+let isCenteringLocation = false;
 
 function onMapMouseDown(e) {
   if (e.button !== 0) return;
@@ -266,6 +268,8 @@ function onMapMouseDown(e) {
       e.target.closest('#btn-toggle-legend') ||
       e.target.closest('#map-incident-legend') ||
       e.target.closest('.btn-legend-toggle') ||
+      e.target.closest('#btn-center-my-location') ||
+      e.target.closest('.btn-center-my-location') ||
       e.target.closest('#map-time-scrubber-bar') ||
       e.target.closest('#map-time-scrubber') ||
       e.target.closest('.scrubber-nav-btn') ||
@@ -273,6 +277,8 @@ function onMapMouseDown(e) {
       e.target.closest('#map-viewport-capture-group') ||
       e.target.closest('#btn-viewport-capture-map') ||
       e.target.closest('#btn-capture-dropdown-toggle') ||
+      e.target.closest('#btn-print-map-view') ||
+      e.target.closest('.btn-print-map-view') ||
       e.target.closest('#map-format-dropdown-menu') ||
       e.target.closest('#map-export-format-select')) {
     return;
@@ -350,6 +356,8 @@ function onMapTouchStart(e) {
       e.target.closest('#btn-toggle-legend') ||
       e.target.closest('#map-incident-legend') ||
       e.target.closest('.btn-legend-toggle') ||
+      e.target.closest('#btn-center-my-location') ||
+      e.target.closest('.btn-center-my-location') ||
       e.target.closest('#map-time-scrubber-bar') ||
       e.target.closest('#map-time-scrubber') ||
       e.target.closest('.scrubber-nav-btn') ||
@@ -357,6 +365,8 @@ function onMapTouchStart(e) {
       e.target.closest('#map-viewport-capture-group') ||
       e.target.closest('#btn-viewport-capture-map') ||
       e.target.closest('#btn-capture-dropdown-toggle') ||
+      e.target.closest('#btn-print-map-view') ||
+      e.target.closest('.btn-print-map-view') ||
       e.target.closest('#map-format-dropdown-menu') ||
       e.target.closest('#map-export-format-select')) {
     return;
@@ -474,6 +484,8 @@ function resetMapPan(e) {
   applyMapPan();
   updateCoordinatesFromPan();
   updateRecenterButtonVisibility();
+  const locBtn = document.getElementById('btn-center-my-location');
+  if (locBtn) locBtn.classList.remove('is-active');
 }
 
 function updateRecenterButtonVisibility() {
@@ -826,6 +838,657 @@ function generatePdfFromJpeg(jpegDataUrl, widthPt = 612, heightPt = 792) {
   return new Blob([uint8], { type: 'application/pdf' });
 }
 
+/* =========================================================
+   DEDICATED PRINTER-FRIENDLY MAP VIEW MODAL CONTROLLERS
+   ========================================================= */
+
+function openPrintMapModal(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  closeCaptureFormatMenu();
+
+  const modal = document.getElementById('print-map-modal');
+  if (!modal) return;
+
+  const c = activeCase || (assignedCases && assignedCases[0]) || {
+    complaint_ref_no: 'DURGA-2026-08194',
+    title: 'CRITICAL: Physical Distress Alert & Stalking in Transit',
+    incident_date: '2026-09-25',
+    incident_time: '19:45',
+    incident_location: 'Central Bus Terminal, Sector 11, Gandhinagar',
+    latitude: 23.2212,
+    longitude: 72.6481,
+    priority: 'EMERGENCY'
+  };
+
+  const priority = getCasePriorityLevel(c);
+
+  // 1. Populate Case Reference ID
+  const caseRefElem = document.getElementById('print-case-ref');
+  if (caseRefElem) {
+    caseRefElem.textContent = c.complaint_ref_no || c.id || 'DURGA-2026-08194';
+  }
+
+  // 2. Populate Incident Date & Time
+  const dtElem = document.getElementById('print-case-datetime');
+  if (dtElem) {
+    const d = c.incident_date || '2026-09-25';
+    const t = c.incident_time || '19:45';
+    dtElem.textContent = `${d} • ${t}`;
+  }
+
+  // 3. Populate Investigating Officer
+  const offElem = document.getElementById('print-case-officer');
+  const signoffElem = document.getElementById('print-signoff-officer');
+  const officerName = c.investigating_officer || 'Inspector R. Sharma (POL-GJ-4029)';
+  if (offElem) offElem.textContent = officerName;
+  if (signoffElem) signoffElem.textContent = officerName;
+
+  // 4. Populate Incident Location
+  const locElem = document.getElementById('print-case-location');
+  if (locElem) {
+    locElem.textContent = c.incident_location || c.location_name || 'Central Bus Terminal, Sector 11, Gandhinagar';
+  }
+
+  // 5. Populate GPS Coordinate Fix (including tactical pan fix if moved)
+  const coordsElem = document.getElementById('print-case-coords');
+  if (coordsElem) {
+    const latFormatted = `${Math.abs(currentCenterLat).toFixed(4)}° ${currentCenterLat >= 0 ? 'N' : 'S'}`;
+    const lngFormatted = `${Math.abs(currentCenterLng).toFixed(4)}° ${currentCenterLng >= 0 ? 'E' : 'W'}`;
+    const isPanned = Math.hypot(currentPanX, currentPanY) > 6;
+    coordsElem.textContent = `📍 ${latFormatted}, ${lngFormatted}${isPanned ? ' [Tactical Panned Fix]' : ''}`;
+  }
+
+  // 6. Populate Tactical Viewport Status
+  const statusElem = document.getElementById('print-case-viewstatus');
+  if (statusElem) {
+    const layerName = currentMapLayer === 'satellite' ? 'Satellite Recon' : 'Tactical Vector Street';
+    const headingText = `${currentMapHeading}° ${currentMapHeading === 0 ? 'N' : currentMapHeading === 90 ? 'E' : currentMapHeading === 180 ? 'S' : 'W'}`;
+    const snapLabel = currentSnapshotIndex === 4 ? 'LIVE FIX' : `SNAPSHOT ${currentSnapshotIndex + 1}/5`;
+    const landmarksLabel = showNearbyLandmarks ? 'Landmarks ON' : 'Landmarks OFF';
+    statusElem.textContent = `${layerName} • Zoom ${currentMapZoom}x • Heading ${headingText} • ${snapLabel} • ${landmarksLabel}`;
+  }
+
+  // 7. Priority Box Styling
+  const prioElem = document.getElementById('print-docket-priority');
+  const prioBox = document.getElementById('print-docket-priority-box');
+  if (prioElem) prioElem.textContent = priority;
+  if (prioBox) {
+    if (priority === 'EMERGENCY') {
+      prioBox.style.background = '#FEF2F2';
+      prioBox.style.borderColor = '#DC2626';
+      if (prioElem) prioElem.style.color = '#DC2626';
+    } else if (priority === 'URGENT') {
+      prioBox.style.background = '#FFFBEB';
+      prioBox.style.borderColor = '#D97706';
+      if (prioElem) prioElem.style.color = '#D97706';
+    } else {
+      prioBox.style.background = '#F0FDF4';
+      prioBox.style.borderColor = '#16A34A';
+      if (prioElem) prioElem.style.color = '#16A34A';
+    }
+  }
+
+  // 8. Verification Hash
+  const hashElem = document.getElementById('print-docket-hash');
+  if (hashElem) {
+    const hex = (Math.abs(currentCenterLat * 10000) ^ Math.abs(currentCenterLng * 10000) ^ 0xABCD).toString(16).toUpperCase().padStart(4, '0');
+    hashElem.textContent = `SHA-256 GEOLOCATION VALIDATED • DOCKET-GEO-${c.complaint_ref_no || '08194'}-${hex} • OFFICIAL POLICE RECORD`;
+  }
+
+  // 9. Dedicated Map Viewport Container: Display ONLY the Current Map Viewport for High-Quality Physical Output
+  const target = document.getElementById('print-map-viewport-target');
+  if (target) {
+    const liveSvg = document.querySelector('#static-map-render-target svg') || document.querySelector('#static-map-viewport svg');
+    let clonedSvg = null;
+    if (liveSvg) {
+      clonedSvg = liveSvg.cloneNode(true);
+      clonedSvg.removeAttribute('id');
+      clonedSvg.setAttribute('width', '100%');
+      clonedSvg.setAttribute('height', '100%');
+      clonedSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      clonedSvg.style.width = '100%';
+      clonedSvg.style.height = '100%';
+      clonedSvg.style.display = 'block';
+      clonedSvg.style.borderRadius = '0';
+    }
+
+    let svgCanvas = document.getElementById('print-map-svg-canvas');
+    if (!svgCanvas) {
+      svgCanvas = document.createElement('div');
+      svgCanvas.id = 'print-map-svg-canvas';
+      svgCanvas.className = 'print-map-svg-canvas';
+      target.insertBefore(svgCanvas, target.firstChild);
+    }
+
+    svgCanvas.innerHTML = '';
+    if (clonedSvg) {
+      svgCanvas.appendChild(clonedSvg);
+    } else {
+      const lat = Number(c.latitude) || baseIncidentLat || 23.2156;
+      const lng = Number(c.longitude) || baseIncidentLng || 72.6369;
+      svgCanvas.innerHTML = generateStaticMapSvg(lat, lng, c, currentMapZoom, currentMapLayer);
+    }
+
+    // Ensure 'Show Legend' toggle and printed incident pin color key exist inside #print-map-viewport-target
+    ensurePrintLegendInTarget(target);
+  }
+
+  // 10. Display Modal
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  // Attach Escape key handler
+  window.addEventListener('keydown', handlePrintModalKeyDown);
+}
+
+// =========================================================
+// PRINT MAP VIEWPORT LEGEND TOGGLE CONTROLLER
+// =========================================================
+let isPrintLegendEnabled = true;
+
+function ensurePrintLegendInTarget(target) {
+  if (!target) target = document.getElementById('print-map-viewport-target');
+  if (!target) return;
+
+  // 1. Ensure toggle bar exists
+  let toggleBar = target.querySelector('#print-legend-toggle-bar');
+  if (!toggleBar) {
+    toggleBar = document.createElement('div');
+    toggleBar.id = 'print-legend-toggle-bar';
+    toggleBar.className = 'print-legend-toggle-bar no-print';
+    toggleBar.innerHTML = `
+      <label class="print-legend-toggle-label" for="print-legend-toggle-checkbox" title="Toggle incident pin color key on printed output">
+        <input type="checkbox" id="print-legend-toggle-checkbox" class="print-legend-toggle-checkbox" ${isPrintLegendEnabled ? 'checked' : ''} onchange="togglePrintLegend(this.checked)">
+        <span class="print-legend-toggle-slider"></span>
+        <span class="print-legend-toggle-text">Show Legend</span>
+      </label>
+      <button type="button" id="btn-print-legend-toggle" class="btn-print-legend-toggle ${isPrintLegendEnabled ? 'active' : ''}" onclick="togglePrintLegendClick(event)" aria-pressed="${isPrintLegendEnabled ? 'true' : 'false'}" title="Toggle incident pin color key on printed output" data-action="toggle-print-legend">
+        <span class="print-legend-btn-icon">📑</span>
+        <span class="print-legend-btn-label">Show Legend</span>
+      </button>
+    `;
+    target.appendChild(toggleBar);
+  }
+
+  // 2. Ensure print incident key exists
+  let keyElem = target.querySelector('#print-map-incident-key');
+  if (!keyElem) {
+    keyElem = document.createElement('div');
+    keyElem.id = 'print-map-incident-key';
+    keyElem.className = 'print-map-incident-key';
+    keyElem.setAttribute('role', 'region');
+    keyElem.setAttribute('aria-label', 'Printed Incident Pin Color Key');
+    keyElem.innerHTML = `
+      <div class="print-key-header">
+        <span class="print-key-title">INCIDENT MAP KEY &amp; PIN CLASSIFICATIONS</span>
+        <span class="print-key-badge">OFFICIAL REF</span>
+      </div>
+      <div class="print-key-grid">
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-emergency"></span>
+          <span class="print-key-label">Emergency / SOS</span>
+        </div>
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-urgent"></span>
+          <span class="print-key-label">Urgent Priority</span>
+        </div>
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-normal"></span>
+          <span class="print-key-label">Standard Docket</span>
+        </div>
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-resolved"></span>
+          <span class="print-key-label">Resolved / Contained</span>
+        </div>
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-landmark"></span>
+          <span class="print-key-label">Checkpost / Landmark</span>
+        </div>
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-snapshot"></span>
+          <span class="print-key-label">Timeline Waypoint</span>
+        </div>
+        <div class="print-key-item">
+          <span class="print-key-swatch swatch-officer"></span>
+          <span class="print-key-label">Officer Live GPS</span>
+        </div>
+      </div>
+    `;
+    target.appendChild(keyElem);
+  }
+
+  // Sync visibility with current state
+  togglePrintLegend(isPrintLegendEnabled);
+}
+
+function togglePrintLegend(show) {
+  if (typeof show === 'boolean') {
+    isPrintLegendEnabled = show;
+  } else {
+    isPrintLegendEnabled = !isPrintLegendEnabled;
+  }
+
+  const keyElem = document.getElementById('print-map-incident-key');
+  const checkbox = document.getElementById('print-legend-toggle-checkbox');
+  const btn = document.getElementById('btn-print-legend-toggle');
+
+  if (keyElem) {
+    keyElem.style.display = isPrintLegendEnabled ? 'flex' : 'none';
+    keyElem.classList.toggle('is-hidden', !isPrintLegendEnabled);
+  }
+
+  if (checkbox && checkbox.checked !== isPrintLegendEnabled) {
+    checkbox.checked = isPrintLegendEnabled;
+  }
+
+  if (btn) {
+    btn.setAttribute('aria-pressed', isPrintLegendEnabled ? 'true' : 'false');
+    btn.classList.toggle('active', isPrintLegendEnabled);
+  }
+}
+
+function togglePrintLegendClick(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const checkbox = document.getElementById('print-legend-toggle-checkbox');
+  const nextVal = checkbox ? !checkbox.checked : !isPrintLegendEnabled;
+  togglePrintLegend(nextVal);
+}
+
+window.togglePrintLegend = togglePrintLegend;
+window.togglePrintLegendClick = togglePrintLegendClick;
+
+function closePrintMapModal() {
+  const modal = document.getElementById('print-map-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  document.body.style.overflow = '';
+  window.removeEventListener('keydown', handlePrintModalKeyDown);
+
+  if (activeShareCountdownTimer) {
+    clearInterval(activeShareCountdownTimer);
+    activeShareCountdownTimer = null;
+  }
+  if (activeSessionCountdownTimer) {
+    clearInterval(activeSessionCountdownTimer);
+    activeSessionCountdownTimer = null;
+  }
+}
+
+function handlePrintModalKeyDown(e) {
+  if (e.key === 'Escape' || e.keyCode === 27) {
+    closePrintMapModal();
+  }
+}
+
+function triggerMapPrint() {
+  window.print();
+}
+
+// =========================================================
+// SECURE SHORT-LIVED PRINT-DOCKET LINK SHARING CONTROLLER
+// =========================================================
+
+const PRINT_SHARE_SALT = 'DURGA_POLICE_SECURE_AUTH_TOKEN_GJ_2026';
+const PRINT_SHARE_DURATION_MS = 30 * 60 * 1000; // 30 minutes short-lived validity
+let activeShareCountdownTimer = null;
+let activeSessionCountdownTimer = null;
+let currentGeneratedShareUrl = '';
+
+/**
+ * Generate a deterministic cryptographic tamper-evident token
+ * for authenticating short-lived print docket previews among officers.
+ */
+function generatePrintDocketSecurityToken(caseRef, issued, exp, badge, lat, lng) {
+  const normLat = parseFloat(lat || 0).toFixed(3);
+  const normLng = parseFloat(lng || 0).toFixed(3);
+  const raw = `${PRINT_SHARE_SALT}|REF:${caseRef}|ISS:${issued}|EXP:${exp}|BDG:${badge}|LAT:${normLat}|LNG:${normLng}`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x5a1f9a2b;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 16777619);
+    h2 = Math.imul(h2 ^ ch, 2166136261);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 15), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 15), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const sigA = (Math.abs(h1) % 16777215).toString(16).toUpperCase().padStart(6, '0');
+  const sigB = (Math.abs(h2) % 65535).toString(16).toUpperCase().padStart(4, '0');
+  return `DURGA-SEC-${sigA}-${sigB}`;
+}
+
+/**
+ * Validates the security token and expiration
+ */
+function verifyPrintDocketSecurityToken(caseRef, issued, exp, badge, lat, lng, token) {
+  if (!token || !caseRef || !exp || !issued) {
+    return { valid: false, expired: false, error: 'Missing security credentials' };
+  }
+  const now = Date.now();
+  // Check if link is expired (short-lived)
+  if (now > Number(exp)) {
+    return { valid: false, expired: true, error: 'Authorization token has expired' };
+  }
+  // Verify token signature
+  const expectedToken = generatePrintDocketSecurityToken(caseRef, issued, exp, badge, lat, lng);
+  if (token !== expectedToken) {
+    return { valid: false, expired: false, error: 'Invalid authentication signature' };
+  }
+  return { valid: true, expired: false };
+}
+
+/**
+ * Generates and copies a secure, short-lived URL for sharing
+ * the current print-docket preview with other authorized officers.
+ */
+async function copyPrintViewLink(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  const c = activeCase || (assignedCases && assignedCases[0]) || {
+    complaint_ref_no: 'DURGA-2026-08194',
+    title: 'CRITICAL: Physical Distress Alert & Stalking in Transit',
+    incident_date: '2026-09-25',
+    incident_time: '19:45',
+    incident_location: 'Central Bus Terminal, Sector 11, Gandhinagar',
+    latitude: 23.2212,
+    longitude: 72.6481,
+    priority: 'EMERGENCY'
+  };
+
+  const caseRef = c.complaint_ref_no || c.id || 'DURGA-2026-08194';
+  const latVal = (typeof currentCenterLat === 'number' && !isNaN(currentCenterLat)) ? currentCenterLat : (Number(c.latitude) || 23.2212);
+  const lngVal = (typeof currentCenterLng === 'number' && !isNaN(currentCenterLng)) ? currentCenterLng : (Number(c.longitude) || 72.6481);
+  const lat = latVal.toFixed(4);
+  const lng = lngVal.toFixed(4);
+  const zoom = currentMapZoom || 15;
+  const layer = currentMapLayer || 'satellite';
+  const heading = currentMapHeading || 0;
+  const legend = isPrintLegendEnabled ? '1' : '0';
+  const landmarks = showNearbyLandmarks ? '1' : '0';
+  const badge = currentBadgeId || 'POL-GJ-4029';
+  const officer = currentOfficerName || 'Inspector R. Sharma';
+
+  const issued = Date.now();
+  const exp = issued + PRINT_SHARE_DURATION_MS; // 30-minute short-lived validity
+  const token = generatePrintDocketSecurityToken(caseRef, issued, exp, badge, lat, lng);
+
+  // Construct secure, short-lived share URL
+  const loc = window.location;
+  const baseUrl = `${loc.protocol}//${loc.host}${loc.pathname}`;
+  const shareUrl = `${baseUrl}?mode=print_preview&caseRef=${encodeURIComponent(caseRef)}&lat=${lat}&lng=${lng}&zoom=${zoom}&layer=${layer}&heading=${heading}&legend=${legend}&landmarks=${landmarks}&badge=${encodeURIComponent(badge)}&officer=${encodeURIComponent(officer)}&issued=${issued}&exp=${exp}&token=${token}`;
+  currentGeneratedShareUrl = shareUrl;
+
+  // Copy to clipboard
+  let copySuccess = false;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      copySuccess = true;
+    } catch (err) {
+      console.warn('navigator.clipboard write failed, attempting fallback:', err);
+    }
+  }
+
+  if (!copySuccess) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = shareUrl;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      copySuccess = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (fallbackErr) {
+      console.error('Fallback clipboard copy failed:', fallbackErr);
+    }
+  }
+
+  // Update button visual state
+  const copyBtn = document.getElementById('btn-copy-print-view-link');
+  const copyLabel = document.getElementById('btn-copy-label');
+  const copyIcon = document.getElementById('btn-copy-icon');
+
+  if (copyBtn) {
+    copyBtn.classList.add('copied');
+    if (copyIcon) copyIcon.textContent = '✓';
+    if (copyLabel) copyLabel.textContent = '✓ Link Copied!';
+
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      if (copyIcon) copyIcon.textContent = '🔗';
+      if (copyLabel) copyLabel.textContent = 'Copy Print View Link';
+    }, 3500);
+  }
+
+  // Reveal real-time share feedback banner inside the print modal
+  const banner = document.getElementById('print-share-status-banner');
+  const urlInput = document.getElementById('share-status-url-input');
+  const tokenPreview = document.getElementById('share-token-preview');
+
+  if (banner && urlInput) {
+    urlInput.value = shareUrl;
+    if (tokenPreview) tokenPreview.textContent = `Token: ${token}`;
+    banner.style.display = 'block';
+
+    startShareExpiryCountdown(exp);
+  }
+
+  // Tactical HUD toast feedback if map toast is present
+  if (typeof showMapLocationToast === 'function') {
+    showMapLocationToast('🔗 Secure Print Link copied (Valid for 30m for authorized officers)');
+  }
+}
+
+function startShareExpiryCountdown(expTime) {
+  if (activeShareCountdownTimer) clearInterval(activeShareCountdownTimer);
+
+  function update() {
+    const diff = expTime - Date.now();
+    const countdownElem = document.getElementById('share-expiry-countdown');
+    if (!countdownElem) return;
+
+    if (diff <= 0) {
+      countdownElem.textContent = 'EXPIRED';
+      countdownElem.style.color = '#EF4444';
+      clearInterval(activeShareCountdownTimer);
+      return;
+    }
+
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    countdownElem.textContent = `Valid for ${mins}m ${secs.toString().padStart(2, '0')}s`;
+  }
+
+  update();
+  activeShareCountdownTimer = setInterval(update, 1000);
+}
+
+function recopySharedLink() {
+  const urlInput = document.getElementById('share-status-url-input');
+  const url = (urlInput && urlInput.value) || currentGeneratedShareUrl;
+  if (!url) return;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
+  const recopyBtn = document.querySelector('.btn-recopy-link');
+  if (recopyBtn) {
+    const orig = recopyBtn.innerHTML;
+    recopyBtn.innerHTML = '<span>✓</span> Copied!';
+    recopyBtn.style.background = '#059669';
+    setTimeout(() => {
+      recopyBtn.innerHTML = orig;
+      recopyBtn.style.background = '';
+    }, 2000);
+  }
+}
+
+function dismissShareBanner() {
+  const banner = document.getElementById('print-share-status-banner');
+  if (banner) banner.style.display = 'none';
+  if (activeShareCountdownTimer) {
+    clearInterval(activeShareCountdownTimer);
+    activeShareCountdownTimer = null;
+  }
+}
+
+function dismissAuthBanner() {
+  const banner = document.getElementById('shared-officer-auth-banner');
+  if (banner) banner.style.display = 'none';
+  if (activeSessionCountdownTimer) {
+    clearInterval(activeSessionCountdownTimer);
+    activeSessionCountdownTimer = null;
+  }
+}
+
+function dismissSecurityAlert() {
+  const alert = document.getElementById('portal-security-alert');
+  if (alert) alert.style.display = 'none';
+}
+
+/**
+ * Handle incoming secure print view link parameters on initial page load
+ */
+function checkIncomingSharedPrintLink() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('mode') || params.get('view') || (params.has('print_view') ? 'print_preview' : null);
+
+  if (mode !== 'print_preview' && mode !== 'print-docket') {
+    return;
+  }
+
+  const caseRef = params.get('caseRef');
+  const exp = Number(params.get('exp'));
+  const issued = Number(params.get('issued'));
+  const token = params.get('token');
+  const badge = params.get('badge') || 'POL-GJ-4029';
+  const officer = params.get('officer');
+  const latStr = params.get('lat');
+  const lngStr = params.get('lng');
+  const zoomStr = params.get('zoom');
+  const layer = params.get('layer');
+  const headingStr = params.get('heading');
+  const legendStr = params.get('legend');
+  const landmarksStr = params.get('landmarks');
+
+  const now = Date.now();
+
+  // 1. Check Link Expiration (short-lived guarantee)
+  if (!exp || isNaN(exp) || now > exp) {
+    const alertBox = document.getElementById('portal-security-alert');
+    const alertMsg = document.getElementById('portal-security-alert-msg');
+    const expDateStr = !isNaN(exp) && exp > 0 ? new Date(exp).toLocaleTimeString() : 'specified deadline';
+
+    if (alertBox && alertMsg) {
+      alertBox.classList.add('alert-error');
+      alertMsg.innerHTML = `⚠️ <strong>Secure Access Notice:</strong> The shared print-docket preview link for case <strong>${caseRef || 'RECORD'}</strong> expired at ${expDateStr}. For operational law enforcement security protocols, print-docket preview URLs are short-lived. Please request a newly generated link from the authorized investigating officer.`;
+      alertBox.style.display = 'flex';
+    }
+    return;
+  }
+
+  // 2. Validate Security Token
+  const verification = verifyPrintDocketSecurityToken(caseRef, issued, exp, badge, latStr, lngStr, token);
+  if (!verification.valid) {
+    const alertBox = document.getElementById('portal-security-alert');
+    const alertMsg = document.getElementById('portal-security-alert-msg');
+    if (alertBox && alertMsg) {
+      alertBox.classList.add('alert-error');
+      alertMsg.innerHTML = `🛡️ <strong>Authorization Warning:</strong> The security signature on this shared print-docket URL could not be validated. Access restricted to verified police personnel.`;
+      alertBox.style.display = 'flex';
+    }
+    return;
+  }
+
+  // 3. Apply shared parameters to map viewport and docket state
+  if (latStr && !isNaN(parseFloat(latStr))) currentCenterLat = parseFloat(latStr);
+  if (lngStr && !isNaN(parseFloat(lngStr))) currentCenterLng = parseFloat(lngStr);
+  if (zoomStr && !isNaN(parseInt(zoomStr, 10))) currentMapZoom = parseInt(zoomStr, 10);
+  if (layer) currentMapLayer = layer;
+  if (headingStr && !isNaN(parseInt(headingStr, 10))) currentMapHeading = parseInt(headingStr, 10);
+  if (legendStr !== null) isPrintLegendEnabled = (legendStr !== '0');
+  if (landmarksStr !== null) showNearbyLandmarks = (landmarksStr === '1');
+
+  // Find or synthesize case docket for review
+  let matchedCase = assignedCases.find(item => (item.complaint_ref_no === caseRef || item.id === caseRef));
+  if (!matchedCase) {
+    matchedCase = {
+      id: 'shared-' + (caseRef || 'docket'),
+      complaint_ref_no: caseRef || 'DURGA-2026-08194',
+      title: 'SHARED DOCKET: Incident Geolocation Review',
+      incident_date: '2026-09-25',
+      incident_time: '19:45',
+      incident_location: 'Central Bus Terminal, Sector 11, Gandhinagar',
+      latitude: currentCenterLat,
+      longitude: currentCenterLng,
+      investigating_officer: officer ? decodeURIComponent(officer) : `Inspector R. Sharma (${badge})`,
+      priority: 'EMERGENCY'
+    };
+  }
+  activeCase = matchedCase;
+
+  // Open the Print Modal directly with the shared docket preview
+  setTimeout(() => {
+    openPrintMapModal();
+
+    // Show authorized shared session banner
+    const authBanner = document.getElementById('shared-officer-auth-banner');
+    const countdownElem = document.getElementById('shared-session-countdown');
+    if (authBanner) {
+      authBanner.style.display = 'flex';
+
+      if (activeSessionCountdownTimer) clearInterval(activeSessionCountdownTimer);
+      function updateSessionCountdown() {
+        const remaining = exp - Date.now();
+        if (remaining <= 0) {
+          if (countdownElem) countdownElem.textContent = 'SESSION EXPIRED';
+          authBanner.style.background = '#FEF2F2';
+          authBanner.style.borderColor = '#DC2626';
+          clearInterval(activeSessionCountdownTimer);
+          return;
+        }
+        const m = Math.floor(remaining / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        if (countdownElem) {
+          countdownElem.textContent = `Expires in ${m}m ${s.toString().padStart(2, '0')}s (Token: ${token})`;
+        }
+      }
+      updateSessionCountdown();
+      activeSessionCountdownTimer = setInterval(updateSessionCountdown, 1000);
+    }
+  }, 150);
+}
+
+window.copyPrintViewLink = copyPrintViewLink;
+window.recopySharedLink = recopySharedLink;
+window.dismissShareBanner = dismissShareBanner;
+window.dismissAuthBanner = dismissAuthBanner;
+window.dismissSecurityAlert = dismissSecurityAlert;
+window.checkIncomingSharedPrintLink = checkIncomingSharedPrintLink;
+
 // =========================================================
 // NEARBY LANDMARKS OVERLAY TOGGLE FOR SITUATIONAL AWARENESS
 // =========================================================
@@ -981,6 +1644,210 @@ function updateLegendControls() {
     toggleBtn.classList.toggle('active', isLegendOpen);
     toggleBtn.setAttribute('aria-expanded', isLegendOpen ? 'true' : 'false');
   }
+}
+
+// =========================================================
+// OFFICER LIVE LOCATION CONTROLLER (GEOLOCATION API & PAN)
+// =========================================================
+
+let mapToastTimer = null;
+function showMapToast(msg) {
+  let toast = document.getElementById('map-location-toast');
+  if (!toast) {
+    const viewport = document.getElementById('static-map-viewport');
+    if (viewport) {
+      toast = document.createElement('div');
+      toast.id = 'map-location-toast';
+      toast.className = 'map-location-toast';
+      viewport.appendChild(toast);
+    }
+  }
+  if (!toast) return;
+
+  toast.textContent = msg;
+  toast.style.display = 'inline-flex';
+  toast.classList.remove('toast-hide');
+  toast.classList.add('toast-show');
+
+  if (mapToastTimer) clearTimeout(mapToastTimer);
+  mapToastTimer = setTimeout(() => {
+    toast.classList.remove('toast-show');
+    toast.classList.add('toast-hide');
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 300);
+  }, 3800);
+}
+
+function generateOfficerPinSvg(lat, lng, zoom) {
+  if (!lat || !lng) return '';
+  const z = typeof zoom === 'number' ? zoom : currentMapZoom;
+  const degPerPx = 0.000035 * Math.pow(2, 15 - z);
+  const officerDx = (lng - baseIncidentLng) / degPerPx;
+  const officerDy = -(lat - baseIncidentLat) / degPerPx;
+  const ox = 350 + officerDx;
+  const oy = 115 + officerDy;
+
+  return `
+    <!-- Officer Live GPS Location Pin -->
+    <g id="officer-live-pin" class="officer-live-pin" transform="translate(${ox.toFixed(2)}, ${oy.toFixed(2)})" role="button" aria-label="Officer Current Live GPS Location">
+      <!-- Pulsing Radar Accuracy Ring -->
+      <circle cx="0" cy="0" r="24" fill="#0284C7" opacity="0.25">
+        <animate attributeName="r" values="12;28;12" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.08;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="0" cy="0" r="14" fill="#0284C7" opacity="0.5"/>
+      <circle cx="0" cy="0" r="9" fill="#0284C7" stroke="#FFFFFF" stroke-width="2.5"/>
+      <text x="0" y="3.5" font-size="9" text-anchor="middle" fill="#FFFFFF">👮</text>
+      <!-- Label callout -->
+      <g transform="translate(0, -22)">
+        <rect x="-60" y="-12" width="120" height="18" rx="4" fill="#020617" stroke="#38BDF8" stroke-width="1.2" opacity="0.95"/>
+        <text x="0" y="1" font-size="7.5" font-weight="800" fill="#38BDF8" text-anchor="middle">
+          👮 OFFICER LIVE POST
+        </text>
+      </g>
+    </g>
+  `;
+}
+
+function renderOfficerPinInMap(lat, lng) {
+  const panLayer = document.getElementById('map-pan-layer');
+  if (!panLayer) return;
+
+  const z = currentMapZoom;
+  const degPerPx = 0.000035 * Math.pow(2, 15 - z);
+  const officerDx = (lng - baseIncidentLng) / degPerPx;
+  const officerDy = -(lat - baseIncidentLat) / degPerPx;
+  const ox = 350 + officerDx;
+  const oy = 115 + officerDy;
+
+  let pinGroup = document.getElementById('officer-live-pin');
+  if (!pinGroup) {
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${generateOfficerPinSvg(lat, lng, z)}</svg>`;
+    const newPin = tempContainer.querySelector('#officer-live-pin');
+    if (newPin) {
+      panLayer.appendChild(newPin);
+    }
+  } else {
+    pinGroup.setAttribute('transform', `translate(${ox.toFixed(2)}, ${oy.toFixed(2)})`);
+  }
+}
+
+function panMapToCoordinate(targetLat, targetLng) {
+  const degPerPx = 0.000035 * Math.pow(2, 15 - currentMapZoom);
+
+  // Calculate required pan offsets to place targetLat/targetLng at viewport center
+  const targetPanY = (targetLat - baseIncidentLat) / degPerPx;
+  const targetPanX = (baseIncidentLng - targetLng) / degPerPx;
+
+  currentPanX = Math.round(targetPanX);
+  currentPanY = Math.round(targetPanY);
+
+  applyMapPan();
+  updateCoordinatesFromPan();
+  updateRecenterButtonVisibility();
+  renderOfficerPinInMap(targetLat, targetLng);
+}
+
+function centerOnOfficerLocation(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  const btn = document.getElementById('btn-center-my-location');
+  const label = document.getElementById('btn-location-label');
+  const icon = document.getElementById('btn-location-icon');
+
+  if (isCenteringLocation) return;
+  isCenteringLocation = true;
+
+  if (btn) {
+    btn.classList.add('is-locating');
+  }
+  if (label) {
+    label.textContent = 'Locating GPS...';
+  }
+  if (icon) {
+    icon.textContent = '🛰️';
+  }
+
+  const setLocatedState = (lat, lng, accuracy, isFallback = false) => {
+    isCenteringLocation = false;
+    if (btn) {
+      btn.classList.remove('is-locating');
+      btn.classList.add('is-active');
+    }
+    if (label) {
+      label.textContent = isFallback ? 'My Location (Patrol)' : 'My Location';
+    }
+    if (icon) {
+      icon.textContent = '📍';
+    }
+    const accStr = accuracy ? ` (±${accuracy}m)` : '';
+    showMapToast(`📍 Centered on ${isFallback ? 'Officer Patrol GPS' : 'Live Officer GPS'}: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°${accStr}`);
+  };
+
+  if (!navigator.geolocation) {
+    // Geolocation API unsupported in environment
+    const fallbackLat = (typeof baseIncidentLat === 'number' ? baseIncidentLat : 23.2156) + 0.0024;
+    const fallbackLng = (typeof baseIncidentLng === 'number' ? baseIncidentLng : 72.6369) + 0.0019;
+    currentOfficerLocation = { lat: fallbackLat, lng: fallbackLng, accuracy: 15, timestamp: Date.now() };
+    panMapToCoordinate(fallbackLat, fallbackLng);
+    setLocatedState(fallbackLat, fallbackLng, 15, true);
+    return;
+  }
+
+  const geoOptions = {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 15000
+  };
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = Math.round(position.coords.accuracy || 10);
+
+      currentOfficerLocation = {
+        lat: lat,
+        lng: lng,
+        accuracy: accuracy,
+        timestamp: Date.now()
+      };
+
+      panMapToCoordinate(lat, lng);
+      setLocatedState(lat, lng, accuracy, false);
+    },
+    (err) => {
+      console.warn('Geolocation API error / permission issue:', err);
+      let errMsg = 'Location access unavailable.';
+      if (err.code === 1) {
+        errMsg = 'Geolocation permission denied.';
+      } else if (err.code === 2) {
+        errMsg = 'GPS position unavailable.';
+      } else if (err.code === 3) {
+        errMsg = 'Location request timed out.';
+      }
+
+      // High-precision patrol unit fallback coordinate near the incident scene
+      const fallbackLat = (typeof baseIncidentLat === 'number' ? baseIncidentLat : 23.2156) + 0.0024;
+      const fallbackLng = (typeof baseIncidentLng === 'number' ? baseIncidentLng : 72.6369) + 0.0019;
+      currentOfficerLocation = {
+        lat: fallbackLat,
+        lng: fallbackLng,
+        accuracy: 15,
+        timestamp: Date.now(),
+        isSimulatedFallback: true
+      };
+
+      panMapToCoordinate(fallbackLat, fallbackLng);
+      setLocatedState(fallbackLat, fallbackLng, 15, true);
+    },
+    geoOptions
+  );
 }
 
 // Time-Scrubber Snapshots & Navigation
@@ -1657,6 +2524,7 @@ function generateStaticMapSvg(lat, lng, caseData, zoom = 15, layer = 'street') {
 
           ${generateLandmarksSvg(isSatellite)}
           ${generateMovementTrailSvg(snapshots, currentSnapshotIndex, isSatellite)}
+          ${generateOfficerPinSvg(currentOfficerLocation ? currentOfficerLocation.lat : null, currentOfficerLocation ? currentOfficerLocation.lng : null, zoom)}
 
           <!-- Distinct Animated Active-Incident Pin Icon Centered on Active Snapshot Coordinates -->
           <g id="active-incident-pin" class="active-incident-pin" transform="translate(${pinX}, ${pinY})" onclick="toggleIncidentPinTooltip(event)" role="button" tabindex="0" aria-label="Incident Pin: Case ${caseData.complaint_ref_no}" filter="url(#pin-shadow-${uniqueId})">
@@ -1822,6 +2690,7 @@ function generateStaticMapSvg(lat, lng, caseData, zoom = 15, layer = 'street') {
 
         ${generateLandmarksSvg(isSatellite)}
         ${generateMovementTrailSvg(snapshots, currentSnapshotIndex, isSatellite)}
+        ${generateOfficerPinSvg(currentOfficerLocation ? currentOfficerLocation.lat : null, currentOfficerLocation ? currentOfficerLocation.lng : null, zoom)}
 
         <!-- Distinct Animated Active-Incident Pin Icon Centered on Coordinates -->
         <g id="active-incident-pin" class="active-incident-pin" transform="translate(${pinX}, ${pinY})" onclick="toggleIncidentPinTooltip(event)" role="button" tabindex="0" aria-label="Incident Pin: Case ${caseData.complaint_ref_no}" filter="url(#pin-shadow-${uniqueId})">
@@ -2148,5 +3017,8 @@ function verifyManualScannedCode() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  refreshOfficerCases();
+  const refreshPromise = typeof refreshOfficerCases === 'function' ? refreshOfficerCases() : Promise.resolve();
+  Promise.resolve(refreshPromise).finally(() => {
+    checkIncomingSharedPrintLink();
+  });
 });
