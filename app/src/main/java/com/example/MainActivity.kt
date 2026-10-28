@@ -55,6 +55,7 @@ import com.example.durga.ui.screens.ScanCaseQrScreen
 import com.example.durga.ui.screens.SelectWhatToShareScreen
 import com.example.durga.ui.screens.SettingsScreen
 import com.example.durga.ui.screens.WitnessReportScreen
+import com.example.durga.ui.screens.GeminiChatScreen
 import com.example.ui.theme.DurgaTheme
 
 object DurgaRoutes {
@@ -88,6 +89,7 @@ object DurgaRoutes {
     const val CAPTURE_EVIDENCE = "capture_evidence"
     const val SCAN_CASE_QR = "scan_case_qr"
     const val CASE_RECORD = "case_record"
+    const val GEMINI_CHAT = "gemini_chat"
 }
 
 class MainActivity : ComponentActivity() {
@@ -160,6 +162,12 @@ fun DurgaApp(
 
     val emergencyContacts by viewModel.emergencyContacts.collectAsState()
     val activeSosSession by viewModel.activeSosSession.collectAsState()
+
+    val chatMessages by viewModel.chatMessages.collectAsState()
+    val isChatLoading by viewModel.isChatLoading.collectAsState()
+    val chatErrorMessage by viewModel.chatErrorMessage.collectAsState()
+    val activePersona by viewModel.activePersona.collectAsState()
+    val isMapsGroundingEnabled by viewModel.isMapsGroundingEnabled.collectAsState()
 
     val activityContext = LocalContext.current as? ComponentActivity
     LaunchedEffect(activityContext?.intent) {
@@ -271,6 +279,9 @@ fun DurgaApp(
                         },
                         onNavigateToScanner = {
                             navController.navigate(DurgaRoutes.SCAN_CASE_QR)
+                        },
+                        onNavigateToGeminiChat = {
+                            navController.navigate(DurgaRoutes.GEMINI_CHAT)
                         },
                         onQuickExit = { viewModel.triggerQuickExit() }
                     )
@@ -916,6 +927,25 @@ fun DurgaApp(
                         onLanguageChange = { viewModel.setLanguage(it) },
                         onQuickExit = { viewModel.triggerQuickExit() },
                         onOpenVault = { navController.navigate(DurgaRoutes.PRIVATE_VAULT) }
+                    )
+                }
+
+                // 28. Gemini AI Chatbot with Google Maps Grounding (gemini-3.8-flash)
+                composable(DurgaRoutes.GEMINI_CHAT) {
+                    GeminiChatScreen(
+                        currentLanguage = currentLang,
+                        messages = chatMessages,
+                        isLoading = isChatLoading,
+                        errorMessage = chatErrorMessage,
+                        activePersona = activePersona,
+                        isMapsGroundingEnabled = isMapsGroundingEnabled,
+                        onSendMessage = { text -> viewModel.sendChatMessage(text) },
+                        onRetryMessage = { viewModel.retryLastChatMessage() },
+                        onClearChat = { viewModel.clearChat() },
+                        onSelectPersona = { persona -> viewModel.setChatPersona(persona) },
+                        onSetCustomPersona = { name, instructions -> viewModel.setCustomPersona(name, instructions) },
+                        onToggleMapsGrounding = { enabled -> viewModel.toggleMapsGrounding(enabled) },
+                        onBack = { navController.popBackStack() }
                     )
                 }
             }

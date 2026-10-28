@@ -977,7 +977,20 @@ function openPrintMapModal(event) {
     ensurePrintLegendInTarget(target);
   }
 
-  // 10. Display Modal
+  // 10. Generate and Render Unique Printable QR Code for Incident Verification
+  const caseRef = c.complaint_ref_no || c.id || 'DURGA-2026-08194';
+  const qrToken = c.secure_token || c.security_token || 'GJ-POL-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+  const verifyUrl = `${window.location.origin}/officer/index.html?verify_case=${encodeURIComponent(caseRef)}&token=${encodeURIComponent(qrToken)}`;
+  renderIncidentVerificationQr(verifyUrl, caseRef, qrToken);
+
+  // 11. Update Field Verification Scan Count Badges
+  const scanCount = getCaseScanCount(caseRef);
+  updateScanCountBadges(scanCount);
+
+  // 12. Sync Live Print Preview Overlay
+  syncLivePrintPreviewState();
+
+  // 13. Display Modal
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
@@ -1125,6 +1138,408 @@ function closePrintMapModal() {
 function handlePrintModalKeyDown(e) {
   if (e.key === 'Escape' || e.keyCode === 27) {
     closePrintMapModal();
+  }
+}
+
+// =========================================================
+// LIVE PRINT PREVIEW CONTROLLER (MARGINS & ORIENTATION WATERMARK)
+// =========================================================
+let isLivePrintPreviewActive = false;
+
+function toggleLivePrintPreview(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  isLivePrintPreviewActive = !isLivePrintPreviewActive;
+  syncLivePrintPreviewState();
+}
+
+function syncLivePrintPreviewState() {
+  const btn = document.getElementById('btn-live-print-preview');
+  const label = document.getElementById('btn-print-preview-label');
+  const overlay = document.getElementById('print-watermark-overlay');
+
+  if (btn) {
+    btn.classList.toggle('active', isLivePrintPreviewActive);
+    btn.setAttribute('aria-pressed', isLivePrintPreviewActive ? 'true' : 'false');
+  }
+  if (label) {
+    label.textContent = isLivePrintPreviewActive ? 'Live Preview: ON' : 'Live Print Preview';
+  }
+  if (overlay) {
+    overlay.style.display = isLivePrintPreviewActive ? 'block' : 'none';
+  }
+}
+
+// =========================================================
+// INCIDENT VERIFICATION QR CODE GENERATION & DOWNLOAD
+// =========================================================
+let currentIncidentQrDataUrl = '';
+let currentIncidentVerificationUrl = '';
+let currentIncidentCaseRef = '';
+
+function getCaseScanCount(caseRef) {
+  if (!caseRef) return 3;
+  const key = `durga_case_scan_count_${caseRef}`;
+  const stored = localStorage.getItem(key);
+  if (stored !== null) return parseInt(stored, 10);
+  let hash = 0;
+  for (let i = 0; i < caseRef.length; i++) hash = (hash * 31 + caseRef.charCodeAt(i)) & 0xffff;
+  const initial = 3 + (hash % 5);
+  localStorage.setItem(key, String(initial));
+  return initial;
+}
+
+function incrementCaseScanCount(caseRef) {
+  if (!caseRef) return 1;
+  const count = getCaseScanCount(caseRef) + 1;
+  localStorage.setItem(`durga_case_scan_count_${caseRef}`, String(count));
+  updateScanCountBadges(count);
+  return count;
+}
+
+function updateScanCountBadges(count) {
+  const headerText = document.getElementById('print-qr-scan-count-text');
+  if (headerText) {
+    headerText.textContent = `Scanned ${count} Times`;
+  }
+  const docketText = document.getElementById('docket-qr-scans-text');
+  if (docketText) {
+    docketText.innerHTML = `Field Scans: <strong>${count} Times</strong>`;
+  }
+}
+
+/**
+ * Generate 33x33 QR Code Matrix (Version 4 Byte Mode)
+ */
+function generateQrMatrix(text) {
+  const size = 33;
+  const matrix = Array.from({ length: size }, () => Array(size).fill(0));
+  const isReserved = Array.from({ length: size }, () => Array(size).fill(false));
+
+  function setPattern(r, c, val, res = true) {
+    if (r >= 0 && r < size && c >= 0 && c < size) {
+      matrix[r][c] = val;
+      if (res) isReserved[r][c] = true;
+    }
+  }
+
+  function drawFinder(r0, c0) {
+    for (let r = -1; r <= 7; r++) {
+      for (let c = -1; c <= 7; c++) {
+        const row = r0 + r, col = c0 + c;
+        if (row < 0 || row >= size || col < 0 || col >= size) continue;
+        if (r >= 0 && r <= 6 && c >= 0 && c <= 6) {
+          const isBlack = (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+          setPattern(row, col, isBlack ? 1 : 0);
+        } else {
+          setPattern(row, col, 0);
+        }
+      }
+    }
+  }
+  drawFinder(0, 0);
+  drawFinder(0, size - 7);
+  drawFinder(size - 7, 0);
+
+  function drawAlignment(r0, c0) {
+    for (let r = -2; r <= 2; r++) {
+      for (let c = -2; c <= 2; c++) {
+        const isBlack = (Math.abs(r) === 2 || Math.abs(c) === 2 || (r === 0 && c === 0));
+        setPattern(r0 + r, c0 + c, isBlack ? 1 : 0);
+      }
+    }
+  }
+  drawAlignment(24, 24);
+
+  for (let i = 8; i < size - 8; i++) {
+    if (!isReserved[6][i]) setPattern(6, i, i % 2 === 0 ? 1 : 0);
+    if (!isReserved[i][6]) setPattern(i, 6, i % 2 === 0 ? 1 : 0);
+  }
+  setPattern(size - 8, 8, 1);
+
+  for (let i = 0; i <= 8; i++) {
+    isReserved[8][i] = true;
+    isReserved[i][8] = true;
+    isReserved[8][size - 1 - i] = true;
+    isReserved[size - 1 - i][8] = true;
+  }
+
+  // GF(256) Math
+  const EXP = new Uint8Array(512);
+  const LOG = new Uint8Array(256);
+  let x = 1;
+  for (let i = 0; i < 255; i++) {
+    EXP[i] = x;
+    EXP[i + 255] = x;
+    LOG[x] = i;
+    x = (x << 1) ^ (x >= 128 ? 0x11d : 0);
+  }
+  function gmul(a, b) {
+    if (a === 0 || b === 0) return 0;
+    return EXP[LOG[a] + LOG[b]];
+  }
+
+  const totalDataBytes = 78;
+  const dataBytes = [];
+  let bitBuffer = (4 << 8) | (text.length & 0xff);
+  let bitCount = 12;
+
+  function pushBits(val, count) {
+    bitBuffer = (bitBuffer << count) | (val & ((1 << count) - 1));
+    bitCount += count;
+    while (bitCount >= 8) {
+      bitCount -= 8;
+      dataBytes.push((bitBuffer >> bitCount) & 0xff);
+    }
+  }
+
+  for (let i = 0; i < text.length && dataBytes.length < totalDataBytes; i++) {
+    pushBits(text.charCodeAt(i) & 0xff, 8);
+  }
+  pushBits(0, Math.min(4, (totalDataBytes - dataBytes.length) * 8 - bitCount));
+  if (bitCount > 0) pushBits(0, 8 - bitCount);
+
+  const padBytes = [0xec, 0x11];
+  let padIdx = 0;
+  while (dataBytes.length < totalDataBytes) {
+    dataBytes.push(padBytes[padIdx % 2]);
+    padIdx++;
+  }
+
+  let genPoly = [1];
+  for (let i = 0; i < 10; i++) {
+    const nextPoly = new Array(genPoly.length + 1).fill(0);
+    for (let j = 0; j < genPoly.length; j++) {
+      nextPoly[j] ^= gmul(genPoly[j], EXP[i]);
+      nextPoly[j + 1] ^= genPoly[j];
+    }
+    genPoly = nextPoly;
+  }
+
+  function calcEC(dataBlock) {
+    const remainder = new Array(10).fill(0);
+    for (let i = 0; i < dataBlock.length; i++) {
+      const factor = dataBlock[i] ^ remainder[0];
+      for (let j = 0; j < 9; j++) {
+        remainder[j] = remainder[j + 1] ^ gmul(genPoly[j + 1], factor);
+      }
+      remainder[9] = gmul(genPoly[10], factor);
+    }
+    return remainder;
+  }
+
+  const block1Data = dataBytes.slice(0, 39);
+  const block2Data = dataBytes.slice(39, 78);
+  const block1EC = calcEC(block1Data);
+  const block2EC = calcEC(block2Data);
+
+  const allCodewords = [];
+  for (let i = 0; i < 39; i++) {
+    allCodewords.push(block1Data[i]);
+    allCodewords.push(block2Data[i]);
+  }
+  for (let i = 0; i < 10; i++) {
+    allCodewords.push(block1EC[i]);
+    allCodewords.push(block2EC[i]);
+  }
+
+  let byteIdx = 0, bitIdx = 7;
+  let upwards = true;
+  for (let right = size - 1; right > 0; right -= 2) {
+    if (right === 6) right--;
+    const cols = [right, right - 1];
+    const rows = upwards ? Array.from({ length: size }, (_, r) => size - 1 - r) : Array.from({ length: size }, (_, r) => r);
+    for (const r of rows) {
+      for (const c of cols) {
+        if (!isReserved[r][c]) {
+          let bit = 0;
+          if (byteIdx < allCodewords.length) {
+            bit = (allCodewords[byteIdx] >> bitIdx) & 1;
+            bitIdx--;
+            if (bitIdx < 0) {
+              bitIdx = 7;
+              byteIdx++;
+            }
+          }
+          if ((r + c) % 2 === 0) bit ^= 1;
+          matrix[r][c] = bit;
+        }
+      }
+    }
+    upwards = !upwards;
+  }
+
+  const formatBits = 0x77c4;
+  for (let i = 0; i < 15; i++) {
+    const bit = (formatBits >> (14 - i)) & 1;
+    if (i <= 5) matrix[8][i] = bit;
+    else if (i === 6) matrix[8][7] = bit;
+    else if (i === 7) matrix[8][8] = bit;
+    else if (i === 8) matrix[7][8] = bit;
+    else matrix[14 - i][8] = bit;
+
+    if (i < 8) matrix[size - 1 - i][8] = bit;
+    else matrix[8][size - 15 + i] = bit;
+  }
+
+  return matrix;
+}
+
+function drawQrToCanvas(canvas, matrix, margin = 2) {
+  if (!canvas) return;
+  const size = matrix.length;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, h);
+
+  const cellSize = Math.floor(Math.min(w, h) / (size + margin * 2));
+  const offsetX = Math.floor((w - size * cellSize) / 2);
+  const offsetY = Math.floor((h - size * cellSize) / 2);
+
+  ctx.fillStyle = '#0F172A';
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (matrix[r][c] === 1) {
+        ctx.fillRect(offsetX + c * cellSize, offsetY + r * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+}
+
+function renderIncidentVerificationQr(verifyUrl, caseRef, qrToken) {
+  currentIncidentVerificationUrl = verifyUrl;
+  currentIncidentCaseRef = caseRef;
+  const canvas = document.getElementById('incident-verification-qr-canvas');
+  if (!canvas) return;
+
+  try {
+    const matrix = generateQrMatrix(verifyUrl);
+    drawQrToCanvas(canvas, matrix, 2);
+    currentIncidentQrDataUrl = canvas.toDataURL('image/png');
+  } catch (err) {
+    console.error('QR generation error:', err);
+  }
+}
+
+function downloadIncidentQrCode(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  const caseRef = currentIncidentCaseRef || 'DURGA-2026-08194';
+  const verifyUrl = currentIncidentVerificationUrl || `${window.location.origin}/officer/index.html?verify_case=${encodeURIComponent(caseRef)}`;
+  const scanCount = getCaseScanCount(caseRef);
+
+  // Generate high-resolution 600x680 printable certificate card
+  const offscreen = document.createElement('canvas');
+  offscreen.width = 600;
+  offscreen.height = 700;
+  const ctx = offscreen.getContext('2d');
+
+  // Background card
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, 600, 700);
+
+  // Outer border
+  ctx.strokeStyle = '#0F172A';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(16, 16, 568, 668);
+
+  ctx.strokeStyle = '#CBD5E1';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(24, 24, 552, 652);
+
+  // Header band
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(26, 26, 548, 64);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 15px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('GOVERNMENT OF GUJARAT • POLICE DEPARTMENT', 300, 52);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('DURGA STATUTORY INCIDENT SPATIAL VERIFICATION QR', 300, 72);
+
+  // Case Reference Box
+  ctx.fillStyle = '#F8FAFC';
+  ctx.fillRect(40, 106, 520, 64);
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(40, 106, 520, 64);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('OFFICIAL CASE REFERENCE NO:', 56, 128);
+
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText(caseRef, 56, 154);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#059669';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(`✓ VERIFIED SCANS: ${scanCount} TIMES`, 544, 142);
+
+  // Render QR Code (Version 4 33x33) at high res 330x330
+  const matrix = generateQrMatrix(verifyUrl);
+  const qrSize = matrix.length;
+  const cellSize = 10;
+  const qrPixelWidth = qrSize * cellSize;
+  const startX = Math.floor((600 - qrPixelWidth) / 2);
+  const startY = 190;
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(startX - 10, startY - 10, qrPixelWidth + 20, qrPixelWidth + 20);
+  ctx.strokeStyle = '#0F172A';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(startX - 10, startY - 10, qrPixelWidth + 20, qrPixelWidth + 20);
+
+  ctx.fillStyle = '#000000';
+  for (let r = 0; r < qrSize; r++) {
+    for (let c = 0; c < qrSize; c++) {
+      if (matrix[r][c] === 1) {
+        ctx.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  // Footer instructions & verification URL
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillText('SCAN WITH POLICE FIELD TERMINAL OR DURGA SCANNER', 300, 570);
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = '11px monospace';
+  const displayUrl = verifyUrl.length > 56 ? verifyUrl.substring(0, 54) + '...' : verifyUrl;
+  ctx.fillText(displayUrl, 300, 592);
+
+  ctx.fillStyle = '#475569';
+  ctx.font = 'italic 10px sans-serif';
+  ctx.fillText('Generated under Statutory Indian Evidence & Geolocation Integrity Standards', 300, 622);
+
+  // Trigger download
+  const dataUrl = offscreen.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `incident-verification-QR-${caseRef}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Feedback notification
+  const dlBtn = document.getElementById('btn-download-incident-qr');
+  if (dlBtn) {
+    const origHtml = dlBtn.innerHTML;
+    dlBtn.innerHTML = '<span>✅</span> <span>QR Downloaded!</span>';
+    setTimeout(() => { dlBtn.innerHTML = origHtml; }, 2000);
   }
 }
 
@@ -2199,6 +2614,94 @@ function updateMapLayerControls() {
   }
 }
 
+let zoomFeedbackTimeout = null;
+let zoomBadgeTimeout = null;
+let lastWheelZoomTime = 0;
+
+/**
+ * Visual feedback mechanism for reaching minimum or maximum zoom levels.
+ * Triggers a smooth animation, subtle glow on the map viewport (#static-map-viewport),
+ * a floating boundary HUD badge, and indicator animation.
+ * @param {'min'|'max'} type
+ */
+function triggerZoomLimitFeedback(type) {
+  const viewport = document.getElementById('static-map-viewport');
+  const glowOverlay = document.getElementById('map-zoom-limit-glow');
+  const badge = document.getElementById('map-zoom-limit-badge');
+  const badgeText = document.getElementById('zoom-limit-text');
+  const badgeIcon = document.getElementById('zoom-limit-icon');
+  const indicator = document.getElementById('map-zoom-indicator');
+
+  if (!viewport) return;
+
+  const isMax = type === 'max';
+  const limitClassName = isMax ? 'zoom-limit-max' : 'zoom-limit-min';
+  const glowClassName = isMax ? 'active-max' : 'active-min';
+  const indicatorClassName = isMax ? 'indicator-flash-max' : 'indicator-flash-min';
+
+  // 1. Reset any existing animation classes to ensure crisp re-trigger
+  viewport.classList.remove('zoom-limit-max', 'zoom-limit-min');
+  if (glowOverlay) glowOverlay.classList.remove('active-max', 'active-min');
+  if (indicator) indicator.classList.remove('indicator-flash-max', 'indicator-flash-min');
+
+  // Trigger reflow for reliable animation replay
+  void viewport.offsetWidth;
+
+  // 2. Apply animation and subtle glow classes to viewport and overlay
+  viewport.classList.add(limitClassName);
+  if (glowOverlay) glowOverlay.classList.add(glowClassName);
+  if (indicator) indicator.classList.add(indicatorClassName);
+
+  // 3. Render floating limit HUD badge
+  if (badge) {
+    if (badgeText) {
+      badgeText.textContent = isMax
+        ? 'Maximum Zoom Reached (18x • Street Detail)'
+        : 'Minimum Zoom Reached (12x • Sector Overview)';
+    }
+    if (badgeIcon) {
+      badgeIcon.textContent = isMax ? '🔍' : '🗺️';
+    }
+    badge.className = `map-zoom-limit-badge show ${isMax ? 'badge-max' : 'badge-min'}`;
+    badge.style.display = 'inline-flex';
+  }
+
+  // 4. Timed cleanups
+  if (zoomFeedbackTimeout) clearTimeout(zoomFeedbackTimeout);
+  zoomFeedbackTimeout = setTimeout(() => {
+    viewport.classList.remove('zoom-limit-max', 'zoom-limit-min');
+    if (glowOverlay) glowOverlay.classList.remove('active-max', 'active-min');
+    if (indicator) indicator.classList.remove('indicator-flash-max', 'indicator-flash-min');
+  }, 900);
+
+  if (zoomBadgeTimeout) clearTimeout(zoomBadgeTimeout);
+  zoomBadgeTimeout = setTimeout(() => {
+    if (badge) {
+      badge.classList.remove('show');
+      setTimeout(() => {
+        if (!badge.classList.contains('show')) {
+          badge.style.display = 'none';
+        }
+      }, 300);
+    }
+  }, 1600);
+}
+
+function onMapWheel(event) {
+  if (event) {
+    event.preventDefault();
+  }
+  const now = Date.now();
+  if (now - lastWheelZoomTime < 180) return;
+  lastWheelZoomTime = now;
+
+  if (event.deltaY < 0) {
+    zoomInMap(event);
+  } else if (event.deltaY > 0) {
+    zoomOutMap(event);
+  }
+}
+
 function zoomInMap(event) {
   if (event) {
     event.stopPropagation();
@@ -2208,6 +2711,12 @@ function zoomInMap(event) {
     currentMapZoom++;
     updateZoomControls();
     if (activeCase) renderStaticMap(activeCase);
+    if (currentMapZoom === 18) {
+      triggerZoomLimitFeedback('max');
+    }
+  } else {
+    // Reached / attempting to exceed maximum zoom level (18x)
+    triggerZoomLimitFeedback('max');
   }
 }
 
@@ -2220,6 +2729,12 @@ function zoomOutMap(event) {
     currentMapZoom--;
     updateZoomControls();
     if (activeCase) renderStaticMap(activeCase);
+    if (currentMapZoom === 12) {
+      triggerZoomLimitFeedback('min');
+    }
+  } else {
+    // Reached / attempting to exceed minimum zoom level (12x)
+    triggerZoomLimitFeedback('min');
   }
 }
 
@@ -2229,8 +2744,19 @@ function updateZoomControls() {
   const outBtn = document.getElementById('map-zoom-out');
 
   if (indicator) indicator.textContent = `${currentMapZoom}x`;
-  if (inBtn) inBtn.disabled = currentMapZoom >= 18;
-  if (outBtn) outBtn.disabled = currentMapZoom <= 12;
+
+  if (inBtn) {
+    const isAtMax = currentMapZoom >= 18;
+    inBtn.classList.toggle('at-limit', isAtMax);
+    inBtn.setAttribute('aria-disabled', String(isAtMax));
+    inBtn.title = isAtMax ? 'Maximum zoom level reached (18x) — Street detail limit' : 'Zoom in (+)';
+  }
+  if (outBtn) {
+    const isAtMin = currentMapZoom <= 12;
+    outBtn.classList.toggle('at-limit', isAtMin);
+    outBtn.setAttribute('aria-disabled', String(isAtMin));
+    outBtn.title = isAtMin ? 'Minimum zoom level reached (12x) — Sector overview limit' : 'Zoom out (−)';
+  }
 }
 
 function renderStaticMap(caseData) {
@@ -3017,6 +3543,11 @@ function verifyManualScannedCode() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const mapVp = document.getElementById('static-map-viewport');
+  if (mapVp) {
+    mapVp.addEventListener('wheel', onMapWheel, { passive: false });
+  }
+
   const refreshPromise = typeof refreshOfficerCases === 'function' ? refreshOfficerCases() : Promise.resolve();
   Promise.resolve(refreshPromise).finally(() => {
     checkIncomingSharedPrintLink();

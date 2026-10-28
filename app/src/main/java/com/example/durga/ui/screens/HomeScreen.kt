@@ -1715,7 +1715,7 @@ fun HomeScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.VerifiedUser,
+                                    imageVector = Icons.Default.Security,
                                     contentDescription = "Official",
                                     tint = colors.primary,
                                     modifier = Modifier.size(18.dp)

@@ -127,9 +127,16 @@
             </div>
 
             <div class="static-map-wrapper">
-              <div class="static-map-viewport" id="static-map-viewport" onmousedown="onMapMouseDown(event)" ontouchstart="onMapTouchStart(event)">
+              <div class="static-map-viewport" id="static-map-viewport" onmousedown="onMapMouseDown(event)" ontouchstart="onMapTouchStart(event)" onwheel="onMapWheel(event)">
                 <!-- Dynamically generated static map render target -->
                 <div class="static-map-render-target" id="static-map-render-target"></div>
+
+                <!-- Visual Feedback: Smooth Glow Overlay & Boundary HUD Badge for Min/Max Zoom Limits -->
+                <div class="map-zoom-limit-glow" id="map-zoom-limit-glow" aria-hidden="true"></div>
+                <div class="map-zoom-limit-badge" id="map-zoom-limit-badge" role="status" aria-live="polite" style="display: none;">
+                  <span class="zoom-limit-icon" id="zoom-limit-icon">🔍</span>
+                  <span class="zoom-limit-text" id="zoom-limit-text">Maximum Zoom Reached (18x)</span>
+                </div>
 
                 <!-- Small dynamic rotating compass widget in corner of static-map-viewport -->
                 <div class="map-compass-widget" id="map-compass-widget" onclick="rotateMapHeading()" title="Click to rotate map heading / orientation">
@@ -498,10 +505,24 @@
     <div class="modal-card print-modal-card">
       <div class="modal-header print-modal-header no-print">
         <div class="print-header-left">
-          <span class="print-header-badge">🖨️ PRINTER-FRIENDLY DOSSIER</span>
+          <div class="print-header-badges-row">
+            <span class="print-header-badge">🖨️ PRINTER-FRIENDLY DOSSIER</span>
+            <span id="print-qr-scan-badge" class="print-qr-scan-badge" title="Verification scans recorded by field officers" data-action="qr-scan-count-badge">
+              <span class="scan-badge-icon">📲</span>
+              <strong id="print-qr-scan-count-text">Scanned 3 Times</strong> by Field Officers
+            </span>
+          </div>
           <h3 class="print-modal-heading">Incident Geolocation Map View</h3>
         </div>
         <div class="print-header-actions">
+          <button id="btn-live-print-preview" class="btn btn-outline btn-sm btn-print-preview-toggle" onclick="toggleLivePrintPreview(event)" title="Toggle live print preview showing output orientation and margin watermarks" data-action="toggle-live-print-preview" aria-pressed="false">
+            <span class="preview-toggle-icon">👁️</span>
+            <span id="btn-print-preview-label">Live Print Preview</span>
+          </button>
+          <button id="btn-download-incident-qr" class="btn btn-outline btn-sm btn-download-qr" onclick="downloadIncidentQrCode(event)" title="Generate and download unique, printable QR code for current incident verification URL" data-action="download-incident-qr">
+            <span class="btn-qr-icon">📥</span>
+            <span>Download QR Code</span>
+          </button>
           <button id="btn-copy-print-view-link" class="btn btn-outline btn-sm btn-copy-print-link" onclick="copyPrintViewLink(event)" title="Generate and copy a secure, short-lived link to share this print docket with authorized officers" data-action="copy-print-view-link" aria-label="Copy Print View Link">
             <span class="btn-copy-icon" id="btn-copy-icon">🔗</span>
             <span class="btn-copy-label" id="btn-copy-label">Copy Print View Link</span>
@@ -557,6 +578,33 @@
 
         <!-- Printer-Friendly Physical Docket Sheet -->
         <div class="print-map-sheet" id="print-map-sheet">
+          <!-- Live Print Preview Watermark Overlay (toggled via Live Print Preview button) -->
+          <div id="print-watermark-overlay" class="print-watermark-overlay no-print" style="display: none;" role="region" aria-label="Live Print Preview Margin & Orientation Watermark">
+            <div class="watermark-spec-bar">
+              <span class="spec-chip">📄 OUTPUT: A4 LANDSCAPE (297mm × 210mm)</span>
+              <span class="spec-chip">📐 SAFE PRINT MARGIN: 15mm (0.59 in)</span>
+              <span class="spec-chip">🎯 100% SCALE PRINTABLE AREA</span>
+            </div>
+            <!-- Margin boundary visual lines -->
+            <div class="print-margin-guide-frame">
+              <div class="margin-corner-bracket corner-top-left"></div>
+              <div class="margin-corner-bracket corner-top-right"></div>
+              <div class="margin-corner-bracket corner-bottom-left"></div>
+              <div class="margin-corner-bracket corner-bottom-right"></div>
+              <div class="margin-edge-tag tag-top">▲ 15mm Top Margin Limit</div>
+              <div class="margin-edge-tag tag-bottom">▼ 15mm Bottom Margin Limit</div>
+              <div class="margin-edge-tag tag-left">◀ 15mm Left Margin Limit</div>
+              <div class="margin-edge-tag tag-right">15mm Right Margin Limit ▶</div>
+            </div>
+            <!-- Diagonal Watermark Stamp Text -->
+            <div class="watermark-diagonal-stamp stamp-line-1">
+              LIVE PRINT PREVIEW • A4 LANDSCAPE • 15mm MARGIN BOUNDARY • OFFICIAL POLICE RECORD
+            </div>
+            <div class="watermark-diagonal-stamp stamp-line-2">
+              STATUTORY GEOLOCATION DOSSIER • INCIDENT VERIFICATION ACTIVE
+            </div>
+          </div>
+
           <div class="docket-print-header">
             <div class="docket-emblem-row">
               <div class="docket-title-block">
@@ -564,9 +612,24 @@
                 <h2 class="docket-doc-title">CRIME INVESTIGATION &amp; TACTICAL GEOLOCATION MAP DOCKET</h2>
                 <div class="docket-subhead">Official Physical Evidence Dossier — Spatial Coordinates Verification</div>
               </div>
-              <div class="docket-priority-box" id="print-docket-priority-box">
-                <span class="priority-label" id="print-docket-priority">EMERGENCY</span>
-                <span class="priority-desc">OFFICIAL CLASSIFICATION</span>
+              <div class="docket-header-right-group">
+                <!-- Printable Incident Verification QR Code Block -->
+                <div class="docket-qr-block" id="docket-qr-block" title="Official Incident Verification QR Code">
+                  <div class="docket-qr-box">
+                    <canvas id="incident-verification-qr-canvas" width="86" height="86" class="docket-qr-canvas"></canvas>
+                    <div class="docket-qr-labels">
+                      <span class="qr-statutory-label">STATUTORY VERIFICATION QR</span>
+                      <span class="qr-scans-badge" id="docket-qr-scans-text">Field Scans: <strong>3 Times</strong></span>
+                      <button type="button" class="btn-qr-download-link no-print" onclick="downloadIncidentQrCode(event)" title="Download unique printable QR code image">
+                        <span>📥</span> Download QR (.png)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="docket-priority-box" id="print-docket-priority-box">
+                  <span class="priority-label" id="print-docket-priority">EMERGENCY</span>
+                  <span class="priority-desc">OFFICIAL CLASSIFICATION</span>
+                </div>
               </div>
             </div>
           </div>

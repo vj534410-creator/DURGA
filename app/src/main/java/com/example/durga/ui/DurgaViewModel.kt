@@ -39,6 +39,7 @@ import com.example.durga.model.ChatMessage
 import com.example.durga.model.ChatPersona
 import com.example.durga.model.GroundedPlace
 import com.example.durga.network.GeminiChatService
+import com.example.durga.repository.DurgaRepository
 import com.example.ui.theme.DurgaThemeMode
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
@@ -1306,7 +1307,7 @@ class DurgaViewModel(application: Application) : AndroidViewModel(application) {
         _selectedCaseId.value = caseId
     }
 
-    fun getUpdatesForSelectedCase() = repository.getCaseUpdates(_selectedCaseId.value ?: "")
+    fun getUpdatesForSelectedCase(): Flow<List<CaseUpdateEntity>> = repository.getCaseUpdates(_selectedCaseId.value ?: "")
 
     fun deleteLocalDataAll() {
         viewModelScope.launch {
